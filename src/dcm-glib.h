@@ -1,5 +1,5 @@
-#ifndef _DCM_H_
-#define _DCM_H_
+#ifndef _DCM_GLIB_H_
+#define _DCM_GLIB_H_
 
 typedef struct {
   GObject base;
@@ -17,8 +17,4 @@ gboolean    dcm_client      (DCM *server, guint *port, GError **error);
 gboolean    dcm_server      (DCM *server, guint port, GError **error);
 
 
-void       *client_main     (void *arg);
-void       *server_main     (void *arg);
-
-
-#endif /*_DCM_H_ */
+#endif /*_DCM_GLIB_H_ */

@@ -19,9 +19,13 @@
 
 #include "common.h"
 #include "dcm.h"
+#include "dcm-glib.h"
 #include "dcm-dbus-glue.h"
 
 G_DEFINE_TYPE(DCM, dcm, G_TYPE_OBJECT);
+
+
+AvahiClient *avahi_client;
 
 
 /* Callback for state changes in the Avahi client */
@@ -47,7 +51,6 @@ int
 connect_to_avahi(GMainLoop *loop) {
   const AvahiPoll *poll_api;
   AvahiGLibPoll *glib_poll;
-  AvahiClient *client;
   const char *version;
   int error;
   
@@ -60,17 +63,17 @@ connect_to_avahi(GMainLoop *loop) {
   
   
   /* Create a new AvahiClient instance */
-  if((client = avahi_client_new(poll_api, 0, avahi_client_callback,
-				loop, &error)) == NULL) {
+  if((avahi_client = avahi_client_new(poll_api, 0, avahi_client_callback,
+				      loop, &error)) == NULL) {
     g_warning ("Error initializing Avahi: %s", avahi_strerror (error));
     goto fail;
   }
 
 
   /* Make a call to get the version string from the daemon */
-  if((version = avahi_client_get_version_string (client)) == NULL) {
+  if((version = avahi_client_get_version_string(avahi_client)) == NULL) {
     g_warning("Error getting version string: %s", 
-	       avahi_strerror(avahi_client_errno(client)));
+	      avahi_strerror(avahi_client_errno(avahi_client)));
     goto fail;
   }
          
@@ -79,8 +82,9 @@ connect_to_avahi(GMainLoop *loop) {
   return 0;
   
  fail:
-  avahi_client_free (client);
-  avahi_glib_poll_free (glib_poll);
+  avahi_client_free(avahi_client);
+  avahi_client = NULL;
+  avahi_glib_poll_free(glib_poll);
   
   return -1;
 }
@@ -133,12 +137,12 @@ dcm_init(DCM *server) {
 
 
   fprintf(stderr, "(dcm) associating DCM GObject with service path= %s..\n", 
-	  SERVICE_PATH);
+	  DCM_SERVICE_PATH);
   
   /* Register a service path with this GObject.  Must be done after installing
    * the class info above. */
   dbus_g_connection_register_g_object(klass->conn,
-				      SERVICE_PATH,
+				      DCM_SERVICE_PATH,
 				      G_OBJECT(server));
 
   fprintf(stderr, "(dcm) creating DCM proxy on bus=%s..\n", 
@@ -162,10 +166,10 @@ dcm_init(DCM *server) {
 
   fprintf(stderr, "(dcm) requesting DBus name for DCM proxy..\n");
 
-  if(!org_freedesktop_DBus_request_name (driver_proxy, SERVICE_NAME, 0, 
+  if(!org_freedesktop_DBus_request_name (driver_proxy, DCM_SERVICE_NAME, 0, 
 					 &request_ret, &error))	{
     fprintf(stderr, "(dcm) unable to request name on DBUS(%s)..\n", 
-	    SERVICE_NAME);
+	    DCM_SERVICE_NAME);
     g_warning("Unable to register service: %s", error->message);
     g_error_free (error);
   }
@@ -208,8 +212,12 @@ dcm_client(DCM *server, guint *gport, GError **error) {
 gboolean
 dcm_server(DCM *server, guint gport, GError **error) {
   server_data *sdp;
-  pthread_t tid;
 
+
+  /* We should register services here now that we know exactly which
+   * service we're performing. */
+
+  
 
   /* Receiving thread must free() */
 
@@ -220,9 +228,6 @@ dcm_server(DCM *server, guint gport, GError **error) {
   }
 
   
-  /* We should register services here now that we know exactly which
-   * service we're performing. */
-
   fprintf(stderr, "(dcm) Received server(port=%d) call!\n", gport);
 
   /* Here, we create the thread that will establish and tunnel between
