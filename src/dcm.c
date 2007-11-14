@@ -207,19 +207,29 @@ dcm_client(DCM *server, guint *gport, GError **error) {
 
 gboolean
 dcm_server(DCM *server, guint gport, GError **error) {
-  volatile unsigned short port;
+  server_data *sdp;
   pthread_t tid;
+
+
+  /* Receiving thread must free() */
+
+  sdp = (server_data *)calloc(1, sizeof(server_data));
+  if(sdp == NULL) {
+    perror("calloc");
+    return FALSE;
+  }
+
   
   /* We should register services here now that we know exactly which
    * service we're performing. */
 
-  fprintf(stderr, "(dcm) Received server(port=%d) call!\n", port);
+  fprintf(stderr, "(dcm) Received server(port=%d) call!\n", gport);
 
   /* Here, we create the thread that will establish and tunnel between
    * local and remote connections, found in "server.c". */
 
-  port = gport;
-  if(pthread_create(&tid, NULL, server_main, (void *)&port) != 0) {
+  sdp->port = gport;
+  if(pthread_create(&(sdp->tid), NULL, server_main, (void *)sdp) != 0) {
     fprintf(stderr, "(dcm) error creating server thread!\n");
     return FALSE;
   }

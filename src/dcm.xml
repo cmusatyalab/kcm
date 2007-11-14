@@ -2,10 +2,10 @@
 <node name="/edu/cmu/cs/diamond/opendiamond/dcm">
   <interface name="edu.cmu.cs.diamond.opendiamond.dcm">
     <method name="server">
-      <arg type="q" name="port" direction="in" />
+      <arg type="u" name="port" direction="in" />
     </method>
     <method name="client">
-      <arg type="q" name="port" direction="out" />
+      <arg type="u" name="port" direction="out" />
     </method>
   </interface>
 </node>

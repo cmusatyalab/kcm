@@ -70,23 +70,25 @@ make_local_connection(unsigned short port) {
 
 void *server_main(void *args) {
   int connfd;
-  unsigned short port;
+  server_data *data;
 
   if(args == NULL) {
     fprintf(stderr, "(dcm-server) bad args\n");
     pthread_exit((void *)-1);
   }
-  port = *(unsigned short *)args;
+  data = (server_data *)args;
 
 
   fprintf(stderr, "(dcm-server) New thread starting..\n");
 
   fprintf(stderr, "(dcm-server) Registering with remote services..\n");
 
-  fprintf(stderr, "(dcm-server) Making local connection on port %u..\n", port);
+  fprintf(stderr, "(dcm-server) Making local connection on port %u..\n", 
+	  data->port);
 
-  connfd = make_local_connection(port);
+  connfd = make_local_connection(data->port);
   if(connfd < 0) {
+    free(data);
     pthread_exit((void *)-1);
   }
 
@@ -94,5 +96,6 @@ void *server_main(void *args) {
 
   fprintf(stderr, "(dcm-server) Tunneling between the two threads..\n");
 
+  free(data);
   pthread_exit(0);
 }

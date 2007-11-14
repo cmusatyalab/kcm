@@ -11,6 +11,11 @@ typedef enum {
   CONN_BLUETOOTH
 } dcm_conn_type_t;
 
+typedef struct {
+  pthread_t tid;
+  unsigned int port;
+} server_data;
+
 ssize_t readn(int fd, void *vptr, size_t n); 
 ssize_t writen(int fd, const void *vptr, size_t n); 
 void tunnel(int localsock, int remotesock);
