@@ -2,7 +2,8 @@ bin_PROGRAMS = dcm
 
 noinst_PROGRAMS = example_client example_server
 
-dcm_SOURCES = client.c common.c common.h dcm.c dcm.h server.c
+dcm_SOURCES = client.c common.c common.h dcm.c dcm.h dcm-avahi.c dcm-avahi.h \
+              server.c
 example_client_SOURCES = example_client.c
 example_server_SOURCES = example_server.c common.c common.h
 

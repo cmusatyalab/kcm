@@ -13,11 +13,13 @@
 
 #include "common.h"
 #include "dcm.h"
+#include "dcm-avahi.h"
 #include "dcm-glib.h"
 #include "dcm-dbus-glue.h"
 
 G_DEFINE_TYPE(DCM, dcm, G_TYPE_OBJECT);
 
+GMainLoop *main_loop = NULL;
 
 static void
 dcm_class_init(DCMClass *klass) {
@@ -118,6 +120,11 @@ dcm_client(DCM *server, guint *gport, GError **error) {
 
   /* We should browse for services here now that we know exactly which
    * service we're performing. */
+
+  if(avahi_client_main(main_loop) < 0) {
+    fprintf(stderr, "(dcm) Error connecting to Avahi!\n");
+    return FALSE;
+  }
   
   /* Here, we create the thread that will establish and tunnel between
    * local and remote connections, found in "client.c". */
@@ -147,7 +154,10 @@ dcm_server(DCM *server, guint gport, GError **error) {
   /* We should register services here now that we know exactly which
    * service we're performing. */
 
-  
+   if(avahi_server_main(main_loop) < 0) {
+    fprintf(stderr, "(dcm) Error registering with Avahi!\n");
+    return FALSE;
+  } 
 
   /* Receiving thread must free() */
 
@@ -177,7 +187,6 @@ dcm_server(DCM *server, guint gport, GError **error) {
 
 int 
 main(int argc, char *argv[]) {
-  GMainLoop *main_loop;
   DCM *server;
 
   fprintf(stderr, "(dcm) starting up..\n");
@@ -191,15 +200,6 @@ main(int argc, char *argv[]) {
   fprintf(stderr, "(dcm) creating new gmain loop..\n");
 
   main_loop = g_main_loop_new(NULL, FALSE);
-
-  fprintf(stderr, "(dcm) connecting to Avahi..\n");
-
-  if(connect_to_avahi(main_loop) < 0) {
-    fprintf(stderr, "Could not connect to Avahi over D-Bus!\n");
-    return -1;
-  }
-  
-  fprintf(stderr, "(dcm) Connected to Avahi! Starting GLib main loop..\n");
 
   g_main_loop_run(main_loop);
 
