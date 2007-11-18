@@ -93,6 +93,9 @@ int main(int argc, char *argv[]) {
 
   fprintf(stderr, "(example-client) successfully connected!\n");
 
+  while(1)
+    continue;
+
   freeaddrinfo(info);
 
   /* Cleanup */

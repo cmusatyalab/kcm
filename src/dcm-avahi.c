@@ -18,10 +18,13 @@ static const AvahiPoll *avahi_gpoll_api;
 static AvahiGLibPoll *avahi_gpoll = NULL;
 static AvahiServiceBrowser *sb = NULL;
 static AvahiClient *avahi_client = NULL;
-static char *service_name;
-static int connected = 0;
+static char *service_name = "DCMServer";
+static int client_running = 0;
+static int services_registered = 0;
 static void create_services(AvahiClient *c);
 
+char *remote_hostname = NULL;
+int  port = 0;
 
 static void 
 resolve_callback(AvahiServiceResolver *r,
@@ -42,8 +45,9 @@ resolve_callback(AvahiServiceResolver *r,
   assert(r);
  
   /* Called whenever a service has been resolved successfully or timed out */
-
+  
   switch (event) {
+
   case AVAHI_RESOLVER_FAILURE:
     fprintf(stderr, "(dcm-avahi) Failed to resolve service '%s' of type '%s' "
 	    " in domain '%s': %s\n", name, type, domain, 
@@ -55,7 +59,8 @@ resolve_callback(AvahiServiceResolver *r,
     {
       char a[AVAHI_ADDRESS_STR_MAX], *t;
       
-      fprintf(stderr, "Service '%s' of type '%s' in domain '%s':\n", name, type, domain);
+      fprintf(stderr, "Resolved service '%s' of type '%s' in domain '%s':\n", 
+	      name, type, domain);
       
       avahi_address_snprint(a, sizeof(a), address);
       t = avahi_string_list_to_string(txt);
@@ -112,7 +117,7 @@ browse_callback(AvahiServiceBrowser *b,
     return;
 
   case AVAHI_BROWSER_NEW:
-    fprintf(stderr, "(dcm-avahi) NEW: service '%s' of type '%s' in "
+    fprintf(stderr, "(dcm-avahi) Found service '%s' of type '%s' in "
 	    "domain '%s'\n", name, type, domain);
 
     /* We ignore the returned resolver object. In the callback
@@ -129,15 +134,16 @@ browse_callback(AvahiServiceBrowser *b,
     break;
  
   case AVAHI_BROWSER_REMOVE:
-    fprintf(stderr, "(dcm-avahi) REMOVE: service '%s' of type '%s' in domain"
+    fprintf(stderr, "(dcm-avahi) Lost service '%s' of type '%s' in domain"
 	    " '%s'\n", name, type, domain);
     break;
 
   case AVAHI_BROWSER_ALL_FOR_NOW:
+    fprintf(stderr, "(dcm-avahi) Received ALL_FOR_NOW browser callback\n");
+    break;
+
   case AVAHI_BROWSER_CACHE_EXHAUSTED:
-    fprintf(stderr, "(dcm-avahi) %s\n", 
-	    event == AVAHI_BROWSER_CACHE_EXHAUSTED ? "CACHE_EXHAUSTED" 
-	                                            : "ALL_FOR_NOW");
+    fprintf(stderr, "(dcm-avahi) Received CACHE_EXHAUSTED browser callback\n");
     break;
   }
 }
@@ -149,24 +155,22 @@ avahi_client_callback(AVAHI_GCC_UNUSED AvahiClient *client, AvahiClientState sta
 {
   GMainLoop *loop = userdata;
   
-  g_message ("Avahi Client State Change: %d", state);
+  g_message ("(dcm-avahi) Avahi Client State Change: %d", state);
   
   switch(state) {
-  case AVAHI_CLIENT_S_RUNNING:
 
-    /* The server has startup successfully and registered its host
-     * name on the network, so it's time to create our services */
-    if (!group)
-      create_services(client);
+  case AVAHI_CLIENT_S_RUNNING:
+    client_running = 1;
     break;
 
   case AVAHI_CLIENT_FAILURE:
     /* We're disconnected from the Daemon */
-    g_message("Disconnected from the Avahi Daemon: %s", 
+    g_message("(dcm-avahi) Disconnected from the Avahi Daemon: %s", 
 	      avahi_strerror(avahi_client_errno(client)));
     
     /* Quit the application */
     g_main_loop_quit (loop);
+
     break;
 
   case AVAHI_CLIENT_S_COLLISION:
@@ -195,16 +199,20 @@ avahi_client_callback(AVAHI_GCC_UNUSED AvahiClient *client, AvahiClientState sta
 
 /* Callback for state changes in the entry group */
 
-static 
-void avahi_entry_group_callback(AvahiEntryGroup *g, AvahiEntryGroupState state, AVAHI_GCC_UNUSED void *userdata) {
-
+static void 
+avahi_entry_group_callback(AvahiEntryGroup *g, 
+			   AvahiEntryGroupState state, 
+			   AVAHI_GCC_UNUSED void *userdata) 
+{
   assert(g == group || group == NULL);
 
   switch (state) {
+
   case AVAHI_ENTRY_GROUP_ESTABLISHED :
     /* The entry group has been established successfully */
     fprintf(stderr, "(dcm-avahi) Service '%s' successfully established.\n", 
 	    service_name);
+    services_registered = 1;
     break;
 
   case AVAHI_ENTRY_GROUP_COLLISION : {
@@ -238,33 +246,44 @@ void avahi_entry_group_callback(AvahiEntryGroup *g, AvahiEntryGroupState state, 
   }
 }
 
-static void create_services(AvahiClient *c) {
+
+static void
+create_services(AvahiClient *c) {
   int ret;
 
   assert(c);
 
+
   /* If this is the first time we're called, let's create a new entry group */
-  if (!group)
-    if (!(group = avahi_entry_group_new(c, avahi_entry_group_callback, 
-					NULL))) {
-      fprintf(stderr, "(dcm-avahi) avahi_entry_group_new() failed: %s\n", 
+
+  if(group == NULL) {
+    group = avahi_entry_group_new(c, avahi_entry_group_callback, NULL);
+    if(group == NULL) {
+      fprintf(stderr, "(dcm-avahi) Failed creating new entry group: %s\n", 
 	      avahi_strerror(avahi_client_errno(c)));
       goto fail;
     }
+  }
+
+
+  /* Add our service */
 
   fprintf(stderr, "(dcm-avahi) Adding service '%s'\n", service_name);
 
-  /* Add a service */
   if((ret = avahi_entry_group_add_service(group, AVAHI_IF_UNSPEC, 
 					  AVAHI_PROTO_UNSPEC, 0, service_name, 
 					  "_dcm._tcp", NULL, NULL, 
 					  PORTNUM, NULL)) < 0) {
-    fprintf(stderr, "(dcm-avahi) Failed to add _printer._tcp service: %s\n",
+    fprintf(stderr, "(dcm-avahi) Failed to add _dcm._tcp service: %s\n",
 	    avahi_strerror(ret));
     goto fail;
   }
  
+
   /* Tell the Avahi server to register the service */
+
+  fprintf(stderr, "(dcm-avahi) Committing service '%s'\n", service_name);
+
   if((ret = avahi_entry_group_commit(group)) < 0) {
     fprintf(stderr, "(dcm-avahi) Failed to commit entry_group: %s\n",
 	    avahi_strerror(ret));
@@ -281,7 +300,6 @@ static void create_services(AvahiClient *c) {
 
 static int
 connect_to_avahi(GMainLoop *loop) {
-  const char *version;
   int error;
   
   /* Optional: Tell avahi to use g_malloc and g_free */
@@ -300,17 +318,6 @@ connect_to_avahi(GMainLoop *loop) {
     goto fail;
   }
 
-
-  /* Make a call to get the version string from the daemon */
-  if((version = avahi_client_get_version_string(avahi_client)) == NULL) {
-    g_warning("Error getting version string: %s", 
-	      avahi_strerror(avahi_client_errno(avahi_client)));
-    goto fail;
-  }
-         
-  g_message ("Avahi Server Version: %s", version);
-
-  connected = 1;
   return 0;
   
  fail:
@@ -322,19 +329,44 @@ connect_to_avahi(GMainLoop *loop) {
   return -1;
 }
 
+
 int
-avahi_server_main(GMainLoop *loop) {
+avahi_server_main(GMainLoop *loop, char *sname) {
+
+  if(sname == NULL) {
+    fprintf(stderr, "(dcm-avahi) No service name specified!\n");
+    return -1;
+  }
+  service_name = sname;
 
   /* Allocate main loop objects and client. */
 
-  if(!connected)
+  if(!client_running)
     if(connect_to_avahi(loop) < 0) {
       fprintf(stderr, "(dcm-avahi) Failed to create glib polling object "
 	      "+ api.\n");
       goto fail;
     }
 
-  service_name = avahi_strdup("DCM");
+  fprintf(stderr, "(dcm-avahi) Waiting for Avahi client to come up..\n");
+
+  while(!client_running)
+    continue;
+
+
+  /* Avahi has started up successfully, so it's time to create our services */
+  
+  fprintf(stderr, "(dcm-avahi) Registering services with Avahi..\n");
+
+  if(!group)
+    create_services(avahi_client);
+
+  fprintf(stderr, "(dcm-avahi) Waiting for entry group callbacks..\n");
+
+  while(!services_registered)
+    continue;
+
+  fprintf(stderr, "(dcm-avahi) Done with Avahi registration!\n");
      
   return 0;
 
@@ -356,18 +388,29 @@ avahi_server_main(GMainLoop *loop) {
   return -1;
 }
 
+
 int 
 avahi_client_main(GMainLoop *loop) {
 
   /* Allocate main loop objects and client. */
 
-  if(!connected)
+  fprintf(stderr, "(dcm-avahi) Connecting to Avahi..\n");
+
+  if(!client_running) {
     if(connect_to_avahi(loop) < 0) {
       fprintf(stderr, "(dcm-avahi) Failed to create glib polling object "
 	      "+ api.\n");
       goto fail;
     }
+  }
 
+  fprintf(stderr, "(dcm-avahi) Waiting for Avahi client to come up..\n");
+
+  while(!client_running)
+    continue;
+
+
+  fprintf(stderr, "(dcm-avahi) Creating service browser.. \n");
   
   /* Create the service browser */
 
@@ -381,6 +424,12 @@ avahi_client_main(GMainLoop *loop) {
       goto fail;
     }
   }
+
+  fprintf(stderr, "(dcm-avahi) Waiting for browser and resolver callbacks "
+	  "with connection info.\n");
+
+  while(remote_hostname == NULL)
+    continue;
 
   return 0;
 

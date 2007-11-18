@@ -116,7 +116,7 @@ dcm_client(DCM *server, guint *gport, GError **error) {
   volatile int port;
   pthread_t tid;
 
-  fprintf(stderr, "(dcm) Received client call!\n");
+  fprintf(stderr, "(dcm) Received client call. \n");
 
   /* We should browse for services here now that we know exactly which
    * service we're performing. */
@@ -135,8 +135,7 @@ dcm_client(DCM *server, guint *gport, GError **error) {
     return FALSE;
   }
 
-  fprintf(stderr, "(dcm) Waiting for nonzero port at %p..\n", &port);
-
+  fprintf(stderr, "(dcm) Waiting for child thread to choose port..\n");
   while(port == 0) continue;
 
   *gport = port;
@@ -154,7 +153,7 @@ dcm_server(DCM *server, guint gport, GError **error) {
   /* We should register services here now that we know exactly which
    * service we're performing. */
 
-   if(avahi_server_main(main_loop) < 0) {
+  if(avahi_server_main(main_loop, "DCMServer") < 0) {
     fprintf(stderr, "(dcm) Error registering with Avahi!\n");
     return FALSE;
   } 

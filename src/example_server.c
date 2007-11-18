@@ -92,6 +92,9 @@ int main(int argc, char *argv[]) {
   
   fprintf(stderr, "(example-server) connection established!\n");
 
+  while(TRUE)
+    continue;
+
   /* Cleanup */
   g_object_unref (proxy);
   

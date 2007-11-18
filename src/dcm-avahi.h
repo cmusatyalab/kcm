@@ -4,6 +4,6 @@
 #include <glib.h>
 
 int avahi_client_main(GMainLoop *loop);
-int avahi_server_main(GMainLoop *loop);
+int avahi_server_main(GMainLoop *loop, char *service_name);
 
 #endif /*_DCM_AVAHI_H_ */
