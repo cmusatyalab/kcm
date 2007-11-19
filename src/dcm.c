@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <strings.h>
 #include <glib.h>
 #include <dbus/dbus-glib.h>
 #include <dbus/dbus-glib-bindings.h>
@@ -109,7 +110,6 @@ dcm_init(DCM *server) {
   g_object_unref (driver_proxy);
 }
 
-
  
 gboolean
 dcm_client(DCM *server, guint *gport, GError **error) {
@@ -117,6 +117,7 @@ dcm_client(DCM *server, guint *gport, GError **error) {
   pthread_t tid;
 
   fprintf(stderr, "(dcm) Received client call. \n");
+
 
   /* We should browse for services here now that we know exactly which
    * service we're performing. */
@@ -128,10 +129,10 @@ dcm_client(DCM *server, guint *gport, GError **error) {
   
   /* Here, we create the thread that will establish and tunnel between
    * local and remote connections, found in "client.c". */
-
+  
   port = 0;
   if(pthread_create(&tid, NULL, client_main, (void *)&port) != 0) {
-    fprintf(stderr, "(dcm) error creating server thread!\n");
+    fprintf(stderr, "(dcm) Error creating server thread!\n");
     return FALSE;
   }
 
@@ -145,18 +146,29 @@ dcm_client(DCM *server, guint *gport, GError **error) {
   return TRUE;
 }
 
+
 gboolean
 dcm_server(DCM *server, guint gport, GError **error) {
   server_data *sdp;
+  int listenfd;
 
+
+  fprintf(stderr, "(dcm) Handling server(callback port=%d) call, "
+	  "starting Avahi!\n", gport);
 
   /* We should register services here now that we know exactly which
    * service we're performing. */
-
-  if(avahi_server_main(main_loop, "DCMServer") < 0) {
+  listenfd = avahi_server_main(main_loop, "DCMServer");
+  if(listenfd < 0) {
     fprintf(stderr, "(dcm) Error registering with Avahi!\n");
     return FALSE;
-  } 
+  }
+  
+  fprintf(stderr, "(dcm) Avahi started.  Creating tunneling thread..\n");
+
+
+  /* Here, we create the thread that will establish and tunnel between
+   * local and remote connections, found in "server.c". */
 
   /* Receiving thread must free() */
 
@@ -166,13 +178,8 @@ dcm_server(DCM *server, guint gport, GError **error) {
     return FALSE;
   }
 
-  
-  fprintf(stderr, "(dcm) Received server(port=%d) call!\n", gport);
-
-  /* Here, we create the thread that will establish and tunnel between
-   * local and remote connections, found in "server.c". */
-
-  sdp->port = gport;
+  sdp->local_port = gport;
+  sdp->listenfd = listenfd;
   if(pthread_create(&(sdp->tid), NULL, server_main, (void *)sdp) != 0) {
     fprintf(stderr, "(dcm) error creating server thread!\n");
     return FALSE;
@@ -189,6 +196,7 @@ main(int argc, char *argv[]) {
   DCM *server;
 
   fprintf(stderr, "(dcm) starting up..\n");
+  bzero((void *)&remote_host, sizeof(host_t));
   
   g_type_init();
   

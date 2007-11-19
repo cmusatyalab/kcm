@@ -13,9 +13,11 @@ typedef enum {
 } dcm_conn_type_t;
 
 typedef struct {
-  pthread_t tid;
-  unsigned int port;
+  pthread_t    tid;
+  unsigned int local_port;
+  int          listenfd;
 } server_data;
+
 
 void       *client_main     (void *arg);
 void       *server_main     (void *arg);

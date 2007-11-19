@@ -1,6 +1,10 @@
 #include <errno.h>
+#include <netdb.h>
+#include <netinet/in.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <strings.h>
+#include <sys/socket.h>
 #include <sys/time.h>
 #include <sys/types.h>
 #include <unistd.h>
@@ -141,3 +145,111 @@ choose_random_port(void) {
   return port;
 }
 
+static int
+listen_on_tcp_port(struct sockaddr_in saddr) {
+  int sockfd, bound;
+  unsigned short port;
+
+  /* Create a socket for listening. */
+  
+  if((sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+    perror("socket");
+    return -1;
+  }
+
+
+  /* Choose a port at random and try binding to it. */
+  
+  bound = 0;
+  while(!bound) {
+    port = choose_random_port();
+    saddr.sin_port = htons(port);
+    if(bind(sockfd, (struct sockaddr *) &saddr, 
+	    sizeof(struct sockaddr_in)) < 0) {
+      if(errno != EADDRINUSE) {
+	perror("bind");
+	return -1;
+      }
+    }
+    else bound = 1;
+  }
+
+  
+  /* Success! Now make it a listening socket. */
+    
+  if(listen(sockfd, 1) < 0) {
+    perror("listen");
+    return -1;
+  }
+
+  return sockfd;
+}
+
+
+int
+listen_on_any_tcp_port(void) {
+  struct sockaddr_in saddr;
+  
+  bzero(&saddr, sizeof(struct sockaddr_in));
+  saddr.sin_family = PF_INET;
+  saddr.sin_addr.s_addr = htonl(INADDR_ANY);
+  
+  return listen_on_tcp_port(saddr);
+}
+
+
+/* Disallow remote connections as a security measure.  This also prevents us
+ * from calling listen on an unbound socket.  Otherwise, we'd
+ * let the system choose our port number and send it back to the client. */
+
+int
+listen_on_any_tcp_port_locally(void) {
+  struct sockaddr_in saddr;
+
+  bzero(&saddr, sizeof(struct sockaddr_in));
+  saddr.sin_family = PF_INET;
+  saddr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+
+  return listen_on_tcp_port(saddr);
+}
+
+
+int
+make_tcpip_connection(char *hostname, unsigned short port) {
+  int sockfd, err;
+  char port_str[NI_MAXSERV];
+  struct addrinfo *info, hints;
+
+  if((hostname == NULL) || (port == 0)) 
+    return -1;
+  
+  if((sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+    perror("socket");
+    return -1;
+  }
+    
+  bzero(&hints,  sizeof(struct addrinfo));
+  hints.ai_flags = AI_CANONNAME;
+  hints.ai_family = AF_INET;
+  hints.ai_socktype = SOCK_STREAM;
+  snprintf(port_str, 6, "%u", port);
+    
+  if((err = getaddrinfo(hostname, port_str, &hints, &info)) < 0) {
+    fprintf(stderr, "(dcm) getaddrinfo failed: %s\n", gai_strerror(err));
+    return -1;
+  }
+
+  if(connect(sockfd, info->ai_addr, sizeof(struct sockaddr_in)) < 0) {
+    perror("connect");
+    return -1;
+  }
+
+  freeaddrinfo(info);
+
+  return 0;
+}
+
+int
+make_tcpip_connection_locally(unsigned short port) {
+  return make_tcpip_connection("localhost", port);
+}
