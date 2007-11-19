@@ -112,17 +112,17 @@ dcm_init(DCM *server) {
 
  
 gboolean
-dcm_client(DCM *server, guint *gport, GError **error) {
+dcm_client(DCM *server, gchar *gname, guint *gport, GError **error) {
   volatile int port;
   pthread_t tid;
 
-  fprintf(stderr, "(dcm) Received client call. \n");
+  fprintf(stderr, "(dcm) Received client call (%s). \n", gname);
 
 
   /* We should browse for services here now that we know exactly which
    * service we're performing. */
 
-  if(avahi_client_main(main_loop) < 0) {
+  if(avahi_client_main(main_loop, (char *)gname) < 0) {
     fprintf(stderr, "(dcm) Error connecting to Avahi!\n");
     return FALSE;
   }
@@ -148,18 +148,36 @@ dcm_client(DCM *server, guint *gport, GError **error) {
 
 
 gboolean
-dcm_server(DCM *server, guint gport, GError **error) {
+dcm_server(DCM *server, gchar *gname, guint gport, GError **error) {
   server_data *sdp;
+  struct sockaddr_in saddr;
+  socklen_t slen;
+  unsigned short port;
   int listenfd;
 
+  fprintf(stderr, "(dcm) Received server call (%s, %d).\n", gname, gport);
 
-  fprintf(stderr, "(dcm) Handling server(callback port=%d) call, "
-	  "starting Avahi!\n", gport);
+  fprintf(stderr, "(dcm-avahi) Setting up local port for Avahi services "
+	  "to listen on..\n");
 
-  /* We should register services here now that we know exactly which
-   * service we're performing. */
-  listenfd = avahi_server_main(main_loop, "DCMServer");
+  listenfd = listen_on_any_tcp_port();
   if(listenfd < 0) {
+    fprintf(stderr, "(dcm-avahi) Couldn't create a listening socket!\n");
+    return FALSE;
+  }
+
+  slen = sizeof(struct sockaddr_in);
+  if(getsockname(listenfd, (struct sockaddr *)&saddr, &slen) < 0) {
+    perror("getsockname");
+    return FALSE;
+  }
+  port = ntohs(saddr.sin_port);
+
+
+  /* We should register services with Avahi now that we know exactly which
+   * service we're performing. */
+
+  if(avahi_server_main(main_loop, (char *)gname, port) < 0) {
     fprintf(stderr, "(dcm) Error registering with Avahi!\n");
     return FALSE;
   }

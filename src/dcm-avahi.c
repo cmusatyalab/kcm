@@ -23,13 +23,11 @@ static AvahiGLibPoll *avahi_gpoll = NULL;
 static AvahiServiceBrowser *avahi_service_browser = NULL;
 static AvahiClient *avahi_client = NULL;
 static char *service_name = "DCMServer";
-static char *service_type = "_dcm._tcp";
+static char *service_type = NULL;
+static int   service_port = 0;
 static int client_running = 0;
 static void create_services(AvahiClient *c);
 
-char *remote_hostname = NULL;
-int   remote_port = 0;
-int   service_port = 0;
 
 static void 
 resolve_callback(AvahiServiceResolver *r,
@@ -90,9 +88,6 @@ resolve_callback(AvahiServiceResolver *r,
 	      !!(flags & AVAHI_LOOKUP_RESULT_MULTICAST),
 	      !!(flags & AVAHI_LOOKUP_RESULT_CACHED));
       
-      fprintf(stderr, "(dcm-avahi) remote_hostname (%p) = '%s'\n",
-	      remote_hostname, remote_hostname);
-
       avahi_free(t);
     }
   }
@@ -231,8 +226,9 @@ avahi_entry_group_callback(AvahiEntryGroup *g,
 
   case AVAHI_ENTRY_GROUP_ESTABLISHED :
     /* The entry group has been established successfully */
-    fprintf(stderr, "(dcm-avahi) Service '%s' successfully established.\n", 
-	    service_name);
+    fprintf(stderr, "(dcm-avahi) Service '%s' of type '%s' on port '%u' "
+	    "successfully established.\n", service_name, service_type,
+	    service_port);
     break;
 
   case AVAHI_ENTRY_GROUP_COLLISION : {
@@ -359,16 +355,19 @@ connect_to_avahi(GMainLoop *loop) {
 
 
 int
-avahi_server_main(GMainLoop *loop, char *sname) {
-  int listenfd;
-  socklen_t slen;
-  struct sockaddr_in saddr;
+avahi_server_main(GMainLoop *loop, char *name, unsigned short port) {
 
-  if(sname == NULL) {
+  if(group != NULL) {
+    fprintf(stderr, "(dcm-avahi) Services already registered!\n");
+    return 0;
+  }
+
+  if(name == NULL) {
     fprintf(stderr, "(dcm-avahi) No service name specified!\n");
     return -1;
   }
-  service_name = sname;
+  service_type = strdup(name);
+  service_port = port;
 
 
   /* Allocate main loop objects and client. */
@@ -382,29 +381,13 @@ avahi_server_main(GMainLoop *loop, char *sname) {
     }
   }
 
-  fprintf(stderr, "(dcm-avahi) Setting up local port for Avahi services "
-	  "to listen on..\n");
-
-  listenfd = listen_on_any_tcp_port();
-  if(listenfd < 0) {
-    fprintf(stderr, "(dcm-avahi) Couldn't create a listening socket!\n");
-    goto fail;
-  }
-
-  slen = sizeof(struct sockaddr_in);
-  if(getsockname(listenfd, (struct sockaddr *)&saddr, &slen) < 0) {
-    perror("getsockname");
-    goto fail;
-  }
-  service_port = ntohs(saddr.sin_port);
-
-  fprintf(stderr, "(dcm-avahi) Registering with Avahi on port %d..\n", 
-	  service_port);
+  fprintf(stderr, "(dcm-avahi) Registering %s with Avahi on port %u..\n", 
+	  name, port);
   
-  if(group == NULL)
-    create_services(avahi_client);
+  create_services(avahi_client);
 
-  return listenfd;
+  return 0;
+
 
  fail:
 
@@ -415,13 +398,12 @@ avahi_server_main(GMainLoop *loop, char *sname) {
     avahi_client = NULL;
   }
 
-
   return -1;
 }
 
 
 int 
-avahi_client_main(GMainLoop *loop) {
+avahi_client_main(GMainLoop *loop, char *sname) {
 
   /* Allocate main loop objects and client. */
 
@@ -435,7 +417,7 @@ avahi_client_main(GMainLoop *loop) {
     }
   }
 
-  fprintf(stderr, "(dcm-avahi) Creating service browser.. \n");
+  fprintf(stderr, "(dcm-avahi) Creating service browser for %s.. \n", sname);
   
   /* Create the service browser */
 
@@ -443,7 +425,7 @@ avahi_client_main(GMainLoop *loop) {
     avahi_service_browser = avahi_service_browser_new(avahi_client, 
 						      AVAHI_IF_UNSPEC,
 						      AVAHI_PROTO_UNSPEC,
-						      service_type, NULL, 0,
+						      sname, NULL, 0,
 						      browse_callback, 
 						      avahi_client);
     if(avahi_service_browser == NULL) {

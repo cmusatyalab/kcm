@@ -11,7 +11,7 @@ typedef struct {
 
 extern volatile host_t remote_host;
 
-int avahi_client_main(GMainLoop *loop);
-int avahi_server_main(GMainLoop *loop, char *service_name);
+int avahi_client_main(GMainLoop *loop, char *sname);
+int avahi_server_main(GMainLoop *loop, char *sname, unsigned short port);
 
 #endif /*_DCM_AVAHI_H_ */

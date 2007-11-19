@@ -11,9 +11,9 @@
 #include "common.h"
 #include "dcm-dbus-app-glue.h"
 
-#define SERVICE_NAME "edu.cmu.cs.diamond.opendiamond.dcm"
-#define SERVICE_PATH "/edu/cmu/cs/diamond/opendiamond/dcm"
-
+#define DBUS_SERVICE_NAME "edu.cmu.cs.diamond.opendiamond.dcm"
+#define DBUS_SERVICE_PATH "/edu/cmu/cs/diamond/opendiamond/dcm"
+#define DCM_SERVICE_NAME "_dcm._tcp"
 
 int main(int argc, char *argv[]) {
   DBusGProxy *proxy;
@@ -22,6 +22,7 @@ int main(int argc, char *argv[]) {
   int sockfd, connfd;
   unsigned short port = 0;
   unsigned int len;
+  gchar *name = DCM_SERVICE_NAME;
   guint gport = 0;
   struct sockaddr_in saddr;
 
@@ -69,14 +70,14 @@ int main(int argc, char *argv[]) {
   fprintf(stderr, "(example-server) dbus proxy setting up..\n");
   
   /* This won't trigger activation! */
-  proxy = dbus_g_proxy_new_for_name(conn, SERVICE_NAME, 
-				    SERVICE_PATH, SERVICE_NAME);
+  proxy = dbus_g_proxy_new_for_name(conn, DBUS_SERVICE_NAME, 
+				    DBUS_SERVICE_PATH, DBUS_SERVICE_NAME);
   
   fprintf(stderr, "(example-server) dbus proxy making call..\n");
 
   gport = port;
   /* The method call will trigger activation. */
-  if(!edu_cmu_cs_diamond_opendiamond_dcm_server(proxy, port, &error)) {
+  if(!edu_cmu_cs_diamond_opendiamond_dcm_server(proxy, name, port, &error)) {
     if(error != NULL) {
       g_warning("server() method failed: %s", error->message);
       g_error_free(error);
