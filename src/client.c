@@ -18,6 +18,7 @@ void *
 client_main(void *arg) {
   int *port = arg;
   int listenfd, local_connfd, remote_connfd;
+  unsigned short sp;
   socklen_t slen;
   struct sockaddr_in saddr;
 
@@ -35,9 +36,9 @@ client_main(void *arg) {
     perror("getsockname");
     pthread_exit((void *)-1);
   }
-  *port = ntohs(saddr.sin_port);
+  *port = sp = ntohs(saddr.sin_port);
 
-  fprintf(stderr, "(dcm-client) Listening locally on port %d..\n", *port);
+  fprintf(stderr, "(dcm-client) Listening locally on port %u..\n", sp);
 
   fprintf(stderr, "(dcm-client) Waiting for browser and resolver callbacks "
 	  "with connection info.\n");
@@ -63,7 +64,7 @@ client_main(void *arg) {
     pthread_exit((void *)-1);
   }    
   
-  fprintf(stderr, "(dcm-client) Tunneling between the two threads..\n");
+  fprintf(stderr, "(dcm-client) Accepted! Tunneling between the two threads..\n");
 
   tunnel(local_connfd, remote_connfd);
 

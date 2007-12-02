@@ -17,8 +17,8 @@
 
 
 int main(int argc, char *argv[]) {
-  DBusGProxy *proxy;
   DBusGConnection *conn;
+  DBusGProxy *proxy;
   GError *error = NULL;
   gchar *name = DCM_SERVICE_NAME;
   guint port = 0;

@@ -16,8 +16,8 @@
 #define DCM_SERVICE_NAME "_dcm._tcp"
 
 int main(int argc, char *argv[]) {
-  DBusGProxy *proxy;
   DBusGConnection *conn;
+  DBusGProxy *proxy;
   GError *error = NULL;
   int sockfd, connfd;
   unsigned short port = 0;

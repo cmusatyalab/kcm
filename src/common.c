@@ -1,6 +1,7 @@
 #include <errno.h>
 #include <netdb.h>
 #include <netinet/in.h>
+#include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <strings.h>
@@ -72,31 +73,59 @@ writen(int fd, const void *vptr, size_t n)
 void
 tunnel(int localsock, int remotesock) {
 
+  fprintf(stderr, "Tunneling between fd=%d and fd=%x\n", 
+	  localsock, remotesock);
+
   while(1) {
-    int size_in, size_out, in, out;
-    char buf[4096];
-    fd_set readfds;
+    int size_in, size_out, in, out, maxfd;
+    char buf[4096], *dir;
+    fd_set readfds, exceptfds;
     
     FD_ZERO(&readfds);
+    FD_ZERO(&exceptfds);
     FD_SET(localsock, &readfds);
     FD_SET(remotesock, &readfds);
+    FD_SET(localsock, &exceptfds);
+    FD_SET(remotesock, &exceptfds);
+
+    maxfd = localsock;
+    if(remotesock > maxfd)
+      maxfd = remotesock;
+    maxfd++;
     
-    if(select(2, &readfds, NULL, NULL, NULL) < 0) {
+    if(select(maxfd, &readfds, NULL, &exceptfds, NULL) < 0) {
       perror("select");
-      exit(EXIT_FAILURE);
+      close(localsock);
+      close(remotesock);
+      pthread_exit((void *)-1);
     }
-    
     
     /* Figure out which direction information will flow. */
     
-    if(FD_ISSET(localsock, &readfds))
-      in = localsock, out = remotesock;
-    else if(FD_ISSET(remotesock, &readfds))
-      in = remotesock, out = localsock;
+    if(FD_ISSET(localsock, &exceptfds) || FD_ISSET(remotesock, &exceptfds)) {
+      fprintf(stderr, "(dcm-tunnel) select() reported exceptions!\n");
+      close(localsock);
+      close(remotesock);
+      pthread_exit((void *)-1);
+    }
+
+
+    if(FD_ISSET(localsock, &readfds)) {
+      in = localsock; 
+      out = remotesock; 
+      dir = "out";
+    }
+    else if(FD_ISSET(remotesock, &readfds)) {
+      in = remotesock;
+      out = localsock;
+      dir = "in";
+    }
     else {
-      fprintf(stderr, "(tunnel) select() succeeded, but no file descriptors "
-	      "are ready to be read!\n");
-      exit(EXIT_FAILURE);
+      fprintf(stderr, "(dcm-tunnel) select() succeeded, but no file "
+	      "descriptors are ready to be read!\n");
+      close(localsock);
+      close(remotesock);
+      pthread_exit((void *)-1);
     }
     
     
@@ -108,22 +137,29 @@ tunnel(int localsock, int remotesock) {
       continue;
     }
     else if(size_in == 0) { /* EOF */
-      close(localsock); close(remotesock);
-      fprintf(stderr, "(tunnel) The connection was closed.\n");
-      exit(EXIT_SUCCESS);	  
+      fprintf(stderr, "(dcm-tunnel) The local connection was closed.\n");
+      close(localsock);
+      close(remotesock);
+      pthread_exit((void *)0);
     }
     
-    do { 
-      size_out = writen(out, (void *)buf, size_in);
-      if(size_out < 0)
-	perror("write");
-    } while(size_out < 0);  /* Do NOT lose data. */
+    size_out = writen(out, (void *)buf, size_in);
+    if(size_out < 0) {
+      perror("write");
+      fprintf(stderr, "(dcm-tunnel) The remote connection was closed.\n");
+      close(localsock);
+      close(remotesock);
+      pthread_exit((void *)0);
+    }
+      
     
     if(size_in != size_out) {
-      fprintf(stderr, "(tunnel) Somehow lost bytes, from %d in to %d out!\n", 
+      fprintf(stderr, "(dcm-tunnel) Somehow lost bytes, from %d in to %d out!\n", 
 	      size_in, size_out);
       continue;
     }
+
+    fprintf(stderr, "(dcm-tunnel) tunneled %d bytes %s\n", size_in, dir);
   }
   
   return;
@@ -191,7 +227,7 @@ listen_on_any_tcp_port(void) {
   struct sockaddr_in saddr;
   
   bzero(&saddr, sizeof(struct sockaddr_in));
-  saddr.sin_family = PF_INET;
+  saddr.sin_family = AF_INET;
   saddr.sin_addr.s_addr = htonl(INADDR_ANY);
   
   return listen_on_tcp_port(saddr);
@@ -207,7 +243,7 @@ listen_on_any_tcp_port_locally(void) {
   struct sockaddr_in saddr;
 
   bzero(&saddr, sizeof(struct sockaddr_in));
-  saddr.sin_family = PF_INET;
+  saddr.sin_family = AF_INET;
   saddr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
 
   return listen_on_tcp_port(saddr);
@@ -246,7 +282,7 @@ make_tcpip_connection(char *hostname, unsigned short port) {
 
   freeaddrinfo(info);
 
-  return 0;
+  return sockfd;
 }
 
 int
