@@ -22,7 +22,7 @@ static const AvahiPoll *avahi_gpoll_api = NULL;
 static AvahiGLibPoll *avahi_gpoll = NULL;
 static AvahiServiceBrowser *avahi_service_browser = NULL;
 static AvahiClient *avahi_client = NULL;
-static char *service_name = "DCMServer";
+static char *service_name = "DCM Service";
 static char *service_type = NULL;
 static int   service_port = 0;
 static int client_running = 0;
@@ -236,7 +236,7 @@ avahi_entry_group_callback(AvahiEntryGroup *g,
              
     /* A service name collision happened. Let's pick a new name */
     n = avahi_alternative_service_name(service_name);
-    avahi_free(service_name);
+    //      avahi_free(service_name);
     service_name = n;
     
     fprintf(stderr, "(dcm-avahi) Service name collision, renaming service "
@@ -403,7 +403,7 @@ avahi_server_main(GMainLoop *loop, char *name, unsigned short port) {
 
 
 int 
-avahi_client_main(GMainLoop *loop, char *sname) {
+avahi_client_main(GMainLoop *loop, char *name) {
 
   /* Allocate main loop objects and client. */
 
@@ -417,7 +417,7 @@ avahi_client_main(GMainLoop *loop, char *sname) {
     }
   }
 
-  fprintf(stderr, "(dcm-avahi) Creating service browser for %s.. \n", sname);
+  fprintf(stderr, "(dcm-avahi) Creating service browser for %s.. \n", name);
   
   /* Create the service browser */
 
@@ -425,7 +425,7 @@ avahi_client_main(GMainLoop *loop, char *sname) {
     avahi_service_browser = avahi_service_browser_new(avahi_client, 
 						      AVAHI_IF_UNSPEC,
 						      AVAHI_PROTO_UNSPEC,
-						      sname, NULL, 0,
+						      name, NULL, 0,
 						      browse_callback, 
 						      avahi_client);
     if(avahi_service_browser == NULL) {
