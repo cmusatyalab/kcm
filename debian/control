@@ -1,0 +1,12 @@
+Source: dcm
+Section: unknown
+Priority: extra
+Maintainer: Adam Wolbach <awolbach@cmu.edu>
+Build-Depends: debhelper (>= 5), autotools-dev, libtool, automake, pkg-config, libglib2.0-dev, libdbus-1-dev, libdbus-glib-1-dev, avahi-daemon, libavahi-glib-dev
+Standards-Version: 3.7.2
+
+Package: dcm
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: Display Control Manager (DCM) 
+ A service discovery mechanism across various mobile connections types.

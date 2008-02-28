@@ -73,6 +73,5 @@ AC_SUBST(AM_CFLAGS, ['-Wall -Werror-implicit-function-declaration $(GLIB2_CFLAGS
 AC_CONFIG_FILES([
 Makefile
 src/Makefile
-data/Makefile
 ])
 AC_OUTPUT
