@@ -60,7 +60,7 @@ AC_SEARCH_LIBS([avahi_client_new],
 AC_SEARCH_LIBS([avahi_glib_poll_get],
 	[avahi-glib],, AC_MSG_FAILURE([cannot find avahi_glib_poll_get function]))
 
-AS_AC_EXPAND(DATADIR, $datadir)
+dnl AS_AC_EXPAND(DATADIR, $datadir)
 
 DBUS_SERVICES_DIR="$DATADIR/dbus-1/services"
 AC_SUBST(DBUS_SERVICES_DIR)
