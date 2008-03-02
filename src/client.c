@@ -21,6 +21,7 @@ client_main(void *arg) {
   unsigned short sp;
   socklen_t slen;
   struct sockaddr_in saddr;
+  SSL *remote_ssl;
 
   fprintf(stderr, "(dcm-client) New thread starting..\n");
 
@@ -56,6 +57,24 @@ client_main(void *arg) {
     pthread_exit((void *)-1);
   }
 
+  fprintf(stderr, "(dcm-client) Encrypting remote connection..\n");
+
+  remote_ssl = SSL_new(ctx);
+  if(remote_ssl == NULL) {
+    fprintf(stderr, "(dcm-client) Couldn't generate SSL!\n");
+    pthread_exit((void *)-1);
+  }
+  
+  if(SSL_set_fd(remote_ssl, remote_connfd) < 0) {
+    fprintf(stderr, "(dcm-client) Couldn't set SSL descriptor!\n");
+    pthread_exit((void *)-1);
+  }
+  
+  if(SSL_connect(remote_ssl) <=0) {
+    fprintf(stderr, "(dcm-client) Couldn't give SSL handshake!\n");
+    pthread_exit((void *)-1);
+  }
+
   fprintf(stderr, "(dcm-client) Accepting incoming connection..\n");
 
   local_connfd = accept(listenfd, NULL, NULL);
@@ -66,7 +85,7 @@ client_main(void *arg) {
   
   fprintf(stderr, "(dcm-client) Accepted! Tunneling between the two threads..\n");
 
-  tunnel(local_connfd, remote_connfd);
+  tunnel(local_connfd, remote_connfd, remote_ssl);
 
   pthread_exit(0);
 }

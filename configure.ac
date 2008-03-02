@@ -49,6 +49,8 @@ AC_SUBST(AVAHI_LIBS)
 # libs
 AC_SEARCH_LIBS([pthread_create],
 	[pthread],, AC_MSG_FAILURE([cannot find pthread_create function]))
+AC_SEARCH_LIBS([OpenSSL_add_all_digests],
+    [ssl],, AC_MSG_FAILURE([cannot find ssl function]))
 AC_SEARCH_LIBS([dbus_bus_get],
 	[dbus-1],, AC_MSG_FAILURE([cannot find dbus_bus_get function]))
 AC_SEARCH_LIBS([dbus_g_bus_get],

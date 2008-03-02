@@ -21,6 +21,7 @@
 G_DEFINE_TYPE(DCM, dcm, G_TYPE_OBJECT);
 
 GMainLoop *main_loop = NULL;
+SSL_CTX *ctx = NULL;
 
 static void
 dcm_class_init(DCMClass *klass) {
@@ -208,12 +209,34 @@ dcm_server(DCM *server, gchar *gname, guint gport, GError **error) {
   return TRUE;
 }
 
+void
+usage(char *argv0) {
+  fprintf(stderr, "%s <SSL-certificate> <SSL-private-key>\n", argv0);
+}
 
 int 
 main(int argc, char *argv[]) {
   DCM *server;
+  char *certfile, *keyfile;
 
-  fprintf(stderr, "(dcm) starting up..\n");
+  if(argc != 3) {
+    usage(argv[0]);
+    exit(EXIT_FAILURE);
+  }
+
+  certfile = argv[1];
+  keyfile = argv[2];
+  fprintf(stderr, "(dcm) reading certificate at %s\n", certfile);
+  fprintf(stderr, "(dcm) reading private key at %s\n", keyfile);
+
+  fprintf(stderr, "(dcm) initializing SSL..\n");
+
+  THREAD_setup();
+  init_OpenSSL();
+  seed_prng(1024);
+
+  ctx = setup_ctx(certfile, keyfile);
+
   bzero((void *)&remote_host, sizeof(host_t));
   
   g_type_init();
