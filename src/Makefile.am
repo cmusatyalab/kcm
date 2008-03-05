@@ -1,4 +1,5 @@
 bin_PROGRAMS = dcm
+bin_SCRIPTS = dcm_encrypt
 
 noinst_PROGRAMS = example_client example_server
 
