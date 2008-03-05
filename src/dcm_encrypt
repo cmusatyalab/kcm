@@ -6,7 +6,7 @@ openssl genrsa -out /tmp/dcm.key 1024
 
 # generate a temporary public certificate
 rm -f /tmp/dcm.crt
-echo ".\n.\n.\n.\n.\na@a.com\n" | openssl req -new -x509 -key /tmp/dcm.key -out /tmp/dcm.crt -days 1
+cat cert_input | openssl req -new -x509 -key /tmp/dcm.key -out /tmp/dcm.crt -days 1
 
 # run dcm with these params
 dcm /tmp/dcm.crt /tmp/dcm.key
