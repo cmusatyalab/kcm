@@ -1,12 +1,12 @@
 #!/bin/sh
 
 # generate a temporary private key
-rm -f /tmp/dcm.key
-openssl genrsa -out /tmp/dcm.key 1024
+rm -f /tmp/kcm.key
+openssl genrsa -out /tmp/kcm.key 1024
 
 # generate a temporary public certificate
-rm -f /tmp/dcm.crt
-cat cert_input | openssl req -new -x509 -key /tmp/dcm.key -out /tmp/dcm.crt -days 1
+rm -f /tmp/kcm.crt
+cat cert_input | openssl req -new -x509 -key /tmp/kcm.key -out /tmp/kcm.crt -days 1
 
 # run dcm with these params
-dcm /tmp/dcm.crt /tmp/dcm.key
+kcm /tmp/kcm.crt /tmp/kcm.key
