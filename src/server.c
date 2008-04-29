@@ -25,15 +25,15 @@ void *server_main(void *args) {
   server_data *data;
   SSL *remote_ssl;
 
-  fprintf(stderr, "(dcm-server) New thread starting..\n");
+  fprintf(stderr, "(kcm-server) New thread starting..\n");
 
   if(args == NULL) {
-    fprintf(stderr, "(dcm-server) bad args\n");
+    fprintf(stderr, "(kcm-server) bad args\n");
     pthread_exit((void *)-1);
   }
   data = (server_data *)args;
 
-  fprintf(stderr, "(dcm-server) Making local connection on port %u..\n", 
+  fprintf(stderr, "(kcm-server) Making local connection on port %u..\n", 
 	  data->local_port);
 
   local_connfd = make_tcpip_connection_locally(data->local_port);
@@ -43,7 +43,7 @@ void *server_main(void *args) {
   }
 
 
-  fprintf(stderr, "(dcm-server) Accepting remote connection requests..\n");
+  fprintf(stderr, "(kcm-server) Accepting remote connection requests..\n");
 
   remote_connfd = accept(data->listenfd, NULL, NULL);
   if(remote_connfd < 0) {
@@ -53,22 +53,22 @@ void *server_main(void *args) {
   
   remote_ssl = SSL_new(ctx);
   if(remote_ssl == NULL) {
-    fprintf(stderr, "(dcm-server) Couldn't generate SSL!\n");
+    fprintf(stderr, "(kcm-server) Couldn't generate SSL!\n");
     pthread_exit((void *)-1);
   }
 
   if(SSL_set_fd(remote_ssl, remote_connfd) < 0) {
-    fprintf(stderr, "(dcm-server) Couldn't set SSL descriptor!\n");
+    fprintf(stderr, "(kcm-server) Couldn't set SSL descriptor!\n");
     pthread_exit((void *)-1);
   }
 
   if(SSL_accept(remote_ssl) <= 0) {
-    fprintf(stderr, "(dcm-server) Couldn't accept SSL handshake!\n");
+    fprintf(stderr, "(kcm-server) Couldn't accept SSL handshake!\n");
     pthread_exit((void *)-1);
   }
 
 
-  fprintf(stderr, "(dcm-server) Tunneling between the two threads..\n");
+  fprintf(stderr, "(kcm-server) Tunneling between the two threads..\n");
 
   tunnel(local_connfd, remote_connfd, remote_ssl);
 
