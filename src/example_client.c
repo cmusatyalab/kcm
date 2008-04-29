@@ -20,7 +20,7 @@ int main(int argc, char *argv[]) {
   DBusGConnection *conn;
   DBusGProxy *proxy;
   GError *error = NULL;
-  gchar *name = KCM_SERVICE_NAME;
+  gchar *name = KCM_SERVICE_NAME, **interface_strs = NULL;
   guint port = 0, interfaces = 1;
   int sockfd, err;
   char port_str[NI_MAXSERV];
@@ -51,9 +51,19 @@ int main(int argc, char *argv[]) {
   }
     
   
-  fprintf(stderr, "(example-client) DBus calling into kcm..\n");
+  fprintf(stderr, "(example-client) DBus calling into kcm (sense)..\n");
 
   /* The method call will trigger activation, more on that later */
+  if(!edu_cmu_cs_kimberley_kcm_sense(proxy, &interface_strs, &error)) {
+    /* Method failed, the GError is set, let's warn everyone */
+    g_warning("(example-client) kcm->client() method failed: %s", 
+	      error->message);
+    g_error_free(error);
+    exit(EXIT_FAILURE);
+  }
+
+  fprintf(stderr, "(example-client) DBus calling into kcm (browse)..\n");
+
   if(!edu_cmu_cs_kimberley_kcm_browse(proxy, name, interfaces, 
 				      &port, &error)) {
     /* Method failed, the GError is set, let's warn everyone */

@@ -1,16 +1,18 @@
+#include <net/if.h>
+#include <netdb.h>
+#include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <strings.h>
-#include <glib.h>
-#include <dbus/dbus-glib.h>
-#include <dbus/dbus-glib-bindings.h>
-#include <netdb.h>
-#include <pthread.h>
 #include <sys/select.h>
 #include <sys/socket.h>
 #include <sys/time.h>
 #include <sys/types.h>
 #include <unistd.h>
+
+#include <glib.h>
+#include <dbus/dbus-glib.h>
+#include <dbus/dbus-glib-bindings.h>
 
 #include "avahi.h"
 #include "common.h"
@@ -113,23 +115,65 @@ kcm_init(KCM *server) {
 
 
 gboolean
-kcm_sense(KCM *server, gchar **interfaces, GError **error) {
+kcm_sense(KCM *server, gchar ***interfaces, GError **error) {
+  struct if_nameindex *ini;
+  int num_interfaces, i;
+  gchar **ifs;
+
+  ini = if_nameindex();
+  if(ini == NULL) {
+    perror("if_nameindex");
+    fprintf(stderr, "(kcm) Failed retrieving interface name index!\n");
+    *interfaces = NULL;
+    return FALSE;
+  }
+  else {
+    fprintf(stderr, "(kcm) Found interfaces - ");
+
+    for(i=0; ini[i].if_name != NULL; i++)
+      fprintf(stderr, "%d:%s, ", ini[i].if_index, ini[i].if_name);
+    fprintf(stderr, "\n");
+
+    num_interfaces = i;
+  }
+
+  ifs = g_new(char *, num_interfaces + 1);
+  if(ifs == NULL) {
+    fprintf(stderr, "(kcm) g_new failed!\n");
+    *interfaces = NULL;
+    return FALSE;
+  }
+  for(i=0; i<num_interfaces; i++) {
+    ifs[i] = g_strdup(ini[i].if_name);
+    if(ifs[i] == NULL) {
+      fprintf(stderr, "(kcm) g_strdup failed!\n");
+      *interfaces = NULL;
+      return FALSE; /* XXX: cleanup */
+    }
+  }
+  ifs[num_interfaces] = NULL; /* null terminate */
+
+  if_freenameindex(ini);
+  ini = NULL;
+ 
+  *interfaces = ifs;
+
   return TRUE;
 }
 
  
 gboolean
-kcm_browse(KCM *server, gchar *gname, guint *gport, GError **error) {
+kcm_browse(KCM *server, gchar *service_name, gchar **interfaces, guint *gport, GError **error) {
   volatile int port;
   pthread_t tid;
 
-  fprintf(stderr, "(kcm) Received client call (%s). \n", gname);
+  fprintf(stderr, "(kcm) Received client call (%s). \n", service_name);
 
 
   /* We should browse for services here now that we know exactly which
    * service we're performing. */
 
-  if(avahi_client_main(main_loop, (char *)gname) < 0) {
+  if(avahi_client_main(main_loop, (char *)service_name) < 0) {
     fprintf(stderr, "(kcm) Error connecting to Avahi!\n");
     return FALSE;
   }
@@ -155,14 +199,14 @@ kcm_browse(KCM *server, gchar *gname, guint *gport, GError **error) {
 
 
 gboolean
-kcm_publish(KCM *server, gchar *gname, guint gport, GError **error) {
+kcm_publish(KCM *server, gchar *service_name, gchar **interfaces, guint gport, GError **error) {
   server_data *sdp;
   struct sockaddr_in saddr;
   socklen_t slen;
   unsigned short port;
   int listenfd;
 
-  fprintf(stderr, "(kcm) Received server call (%s, %d).\n", gname, gport);
+  fprintf(stderr, "(kcm) Received server call (%s, %d).\n", service_name, gport);
 
   fprintf(stderr, "(kcm-avahi) Setting up local port for Avahi services "
 	  "to listen on..\n");
@@ -184,7 +228,7 @@ kcm_publish(KCM *server, gchar *gname, guint gport, GError **error) {
   /* We should register services with Avahi now that we know exactly which
    * service we're performing. */
 
-  if(avahi_server_main(main_loop, (char *)gname, port) < 0) {
+  if(avahi_server_main(main_loop, (char *)service_name, port) < 0) {
     fprintf(stderr, "(kcm) Error registering with Avahi!\n");
     return FALSE;
   }

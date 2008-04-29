@@ -22,7 +22,7 @@ int main(int argc, char *argv[]) {
   int sockfd, connfd;
   unsigned short port = 0;
   unsigned int len;
-  gchar *name = KCM_SERVICE_NAME;
+  gchar *name = KCM_SERVICE_NAME, **interface_strs = NULL;
   guint gport = 0, interfaces = 1;
   struct sockaddr_in saddr;
 
@@ -73,10 +73,22 @@ int main(int argc, char *argv[]) {
   proxy = dbus_g_proxy_new_for_name(conn, DBUS_SERVICE_NAME, 
 				    DBUS_SERVICE_PATH, DBUS_SERVICE_NAME);
   
-  fprintf(stderr, "(example-server) dbus proxy making call..\n");
+  fprintf(stderr, "(example-server) dbus proxy making call (sense)..\n");
+  
+  /* The method call will trigger activation. */
+  if(!edu_cmu_cs_kimberley_kcm_sense(proxy, &interface_strs, &error)) {
+    /* Method failed, the GError is set, let's warn everyone */
+    g_warning("(example-client) kcm->client() method failed: %s", 
+	      error->message);
+    g_error_free(error);
+    exit(EXIT_FAILURE);
+  }
+
+
+  fprintf(stderr, "(example-server) dbus proxy making call (publish)..\n");
 
   gport = port;
-  /* The method call will trigger activation. */
+
   if(!edu_cmu_cs_kimberley_kcm_publish(proxy, name, interfaces, 
 				       port, &error)) {
     if(error != NULL) {
