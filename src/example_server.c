@@ -21,7 +21,7 @@ int main(int argc, char *argv[]) {
   GError *error = NULL;
   int sockfd, connfd;
   unsigned short port = 0;
-  unsigned int len;
+  unsigned int len, i;
   gchar *name = KCM_SERVICE_NAME, **interface_strs = NULL;
   guint gport = 0, interfaces = 1;
   struct sockaddr_in saddr;
@@ -78,12 +78,18 @@ int main(int argc, char *argv[]) {
   /* The method call will trigger activation. */
   if(!edu_cmu_cs_kimberley_kcm_sense(proxy, &interface_strs, &error)) {
     /* Method failed, the GError is set, let's warn everyone */
-    g_warning("(example-client) kcm->client() method failed: %s", 
+    g_warning("(example-server) kcm->client() method failed: %s", 
 	      error->message);
     g_error_free(error);
     exit(EXIT_FAILURE);
   }
 
+  if(interface_strs != NULL) {
+    fprintf(stderr, "(example-server) Found some interfaces:\n");
+    for(i=0; interface_strs[i] != NULL; i++)
+      fprintf(stderr, "\t%d: %s\n", i, interface_strs[i]);
+    fprintf(stderr, "\n");
+  }
 
   fprintf(stderr, "(example-server) dbus proxy making call (publish)..\n");
 

@@ -22,7 +22,7 @@ int main(int argc, char *argv[]) {
   GError *error = NULL;
   gchar *name = KCM_SERVICE_NAME, **interface_strs = NULL;
   guint port = 0, interfaces = 1;
-  int sockfd, err;
+  int sockfd, err, i;
   char port_str[NI_MAXSERV];
   struct addrinfo *info, hints;
 
@@ -61,6 +61,14 @@ int main(int argc, char *argv[]) {
     g_error_free(error);
     exit(EXIT_FAILURE);
   }
+
+  if(interface_strs != NULL) {
+    fprintf(stderr, "(example-server) Found some interfaces:\n");
+    for(i=0; interface_strs[i] != NULL; i++)
+      fprintf(stderr, "\t%d: %s\n", i, interface_strs[i]);
+    fprintf(stderr, "\n");
+  }
+
 
   fprintf(stderr, "(example-client) DBus calling into kcm (browse)..\n");
 
