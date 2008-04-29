@@ -10,8 +10,9 @@
 #include <sys/time.h>
 #include <sys/types.h>
 #include <unistd.h>
+
 #include "common.h"
-#include "dcm.h"
+#include "kcm.h"
 
 
 /* At the moment, we only support Avahi (local Internet subnet connections)

@@ -9,8 +9,9 @@
 #include <sys/time.h>
 #include <sys/types.h>
 #include <unistd.h>
+
+#include "avahi.h"
 #include "common.h"
-#include "dcm-avahi.h"
 
 volatile host_t remote_host;
 

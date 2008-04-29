@@ -9,11 +9,11 @@
 #include <unistd.h>
 #include <netinet/in.h>
 #include "common.h"
-#include "dcm-dbus-app-glue.h"
+#include "kcm-dbus-app-glue.h"
 
-#define DBUS_SERVICE_NAME "edu.cmu.cs.diamond.opendiamond.dcm"
-#define DBUS_SERVICE_PATH "/edu/cmu/cs/diamond/opendiamond/dcm"
-#define DCM_SERVICE_NAME "_dcm._tcp"
+#define DBUS_SERVICE_NAME "edu.cmu.cs.kimberley.kcm"
+#define DBUS_SERVICE_PATH "/edu/cmu/cs/kimberley/kcm"
+#define KCM_SERVICE_NAME "_kcm._tcp"
 
 int main(int argc, char *argv[]) {
   DBusGConnection *conn;
@@ -22,8 +22,8 @@ int main(int argc, char *argv[]) {
   int sockfd, connfd;
   unsigned short port = 0;
   unsigned int len;
-  gchar *name = DCM_SERVICE_NAME;
-  guint gport = 0;
+  gchar *name = KCM_SERVICE_NAME;
+  guint gport = 0, interfaces = 1;
   struct sockaddr_in saddr;
 
   fprintf(stderr, "(example-server) starting up (pid=%d)..\n", getpid());
@@ -77,7 +77,8 @@ int main(int argc, char *argv[]) {
 
   gport = port;
   /* The method call will trigger activation. */
-  if(!edu_cmu_cs_diamond_opendiamond_dcm_server(proxy, name, port, &error)) {
+  if(!edu_cmu_cs_kimberley_kcm_publish(proxy, name, interfaces, 
+				       port, &error)) {
     if(error != NULL) {
       g_warning("server() method failed: %s", error->message);
       g_error_free(error);

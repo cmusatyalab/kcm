@@ -75,11 +75,11 @@ void
 tunnel(int localsock, int remotesock, SSL *remotessl) {
 
   if((localsock < 0) || (remotesock < 0) || (remotessl == NULL)) {
-    fprintf(stderr, "(dcm-tunnel) Bad tunnel args.\n");
+    fprintf(stderr, "(kcm-tunnel) Bad tunnel args.\n");
     return;
   }
 
-  fprintf(stderr, "(dcm-tunnel) Tunneling between fd=%d and fd=%p\n", 
+  fprintf(stderr, "(kcm-tunnel) Tunneling between fd=%d and fd=%p\n", 
 	  localsock, remotessl);
 
   while(1) {
@@ -107,7 +107,7 @@ tunnel(int localsock, int remotesock, SSL *remotessl) {
     }
     
     if(FD_ISSET(localsock, &exceptfds) || FD_ISSET(remotesock, &exceptfds)) {
-      fprintf(stderr, "(dcm-tunnel) select() reported exceptions!\n");
+      fprintf(stderr, "(kcm-tunnel) select() reported exceptions!\n");
       close(localsock);
       close(remotesock);
       pthread_exit((void *)-1);
@@ -128,7 +128,7 @@ tunnel(int localsock, int remotesock, SSL *remotessl) {
 	continue;
       }
       else if(size_in == 0) { /* EOF */
-	fprintf(stderr, "(dcm-tunnel) The local connection was closed.\n");
+	fprintf(stderr, "(kcm-tunnel) The local connection was closed.\n");
 	close(localsock);
 	close(remotesock);
 	pthread_exit((void *)0);
@@ -136,19 +136,19 @@ tunnel(int localsock, int remotesock, SSL *remotessl) {
     
       size_out = SSL_writen(remotessl, (void *)buf, size_in);
       if(size_out < 0) {
-	fprintf(stderr, "(dcm-tunnel) Failed writing to remote connection.\n");
+	fprintf(stderr, "(kcm-tunnel) Failed writing to remote connection.\n");
 	close(localsock);
 	close(remotesock);
 	pthread_exit((void *)-1);
       }
 
       if(size_in != size_out) {
-	fprintf(stderr, "(dcm-tunnel) Somehow lost bytes, from %d in to %d out!\n", 
+	fprintf(stderr, "(kcm-tunnel) Somehow lost bytes, from %d in to %d out!\n", 
 		size_in, size_out);
 	pthread_exit((void *)-1);
       }
 
-      fprintf(stderr, "(dcm-tunnel) tunneled %d bytes out\n", size_in);
+      fprintf(stderr, "(kcm-tunnel) tunneled %d bytes out\n", size_in);
     }
     else if(FD_ISSET(remotesock, &readfds)) {
 
@@ -156,23 +156,23 @@ tunnel(int localsock, int remotesock, SSL *remotessl) {
 	
 	size_in = SSL_read_wrapper(remotessl, (void *)buf, 4096);
 	if(size_in <= 0) {
-          fprintf(stderr, "(dcm-tunnel) Failed on read from an SSL socket.\n");
+          fprintf(stderr, "(kcm-tunnel) Failed on read from an SSL socket.\n");
 	  pthread_exit((void *)-1);
 	}
 	
 	if((size_out = writen(localsock, buf, size_in)) < 0) {
-	  fprintf(stderr, "(dcm-tunnel) Failed to write "
+	  fprintf(stderr, "(kcm-tunnel) Failed to write "
 		  "between file descriptors.\n");
 	  pthread_exit((void *)-1);
 	}
 	
 	if(size_in != size_out) {
-	  fprintf(stderr, "(dcm-tunnel) Somehow lost bytes, from %d in to %d out!\n", 
+	  fprintf(stderr, "(kcm-tunnel) Somehow lost bytes, from %d in to %d out!\n", 
 		  size_in, size_out);
 	  pthread_exit((void *)-1);
 	}
 	
-	fprintf(stderr, "(dcm-tunnel) tunneled %d bytes in\n", size_in);
+	fprintf(stderr, "(kcm-tunnel) tunneled %d bytes in\n", size_in);
 
 
 	/* If we still have SSL bytes pending, they won't be caught with
@@ -183,7 +183,7 @@ tunnel(int localsock, int remotesock, SSL *remotessl) {
 	  goto reread;
     }
     else {
-      fprintf(stderr, "(dcm-tunnel) select() succeeded, but no file "
+      fprintf(stderr, "(kcm-tunnel) select() succeeded, but no file "
 	      "descriptors are ready to be read!\n");
       close(localsock);
       close(remotesock);
@@ -301,7 +301,7 @@ make_tcpip_connection(char *hostname, unsigned short port) {
   snprintf(port_str, 6, "%u", port);
     
   if((err = getaddrinfo(hostname, port_str, &hints, &info)) < 0) {
-    fprintf(stderr, "(dcm) getaddrinfo failed: %s\n", gai_strerror(err));
+    fprintf(stderr, "(kcm) getaddrinfo failed: %s\n", gai_strerror(err));
     return -1;
   }
 

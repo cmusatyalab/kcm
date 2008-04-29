@@ -9,19 +9,19 @@
 #include <netdb.h>
 #include <netinet/in.h>
 #include <unistd.h>
-#include "dcm-dbus-app-glue.h"
+#include "kcm-dbus-app-glue.h"
 
-#define DBUS_SERVICE_NAME "edu.cmu.cs.diamond.opendiamond.dcm"
-#define DBUS_SERVICE_PATH "/edu/cmu/cs/diamond/opendiamond/dcm"
-#define DCM_SERVICE_NAME "_dcm._tcp"
+#define DBUS_SERVICE_NAME "edu.cmu.cs.kimberley.kcm"
+#define DBUS_SERVICE_PATH "/edu/cmu/cs/kimberley/kcm"
+#define KCM_SERVICE_NAME "_kcm._tcp"
 
 
 int main(int argc, char *argv[]) {
   DBusGConnection *conn;
   DBusGProxy *proxy;
   GError *error = NULL;
-  gchar *name = DCM_SERVICE_NAME;
-  guint port = 0;
+  gchar *name = KCM_SERVICE_NAME;
+  guint port = 0, interfaces = 1;
   int sockfd, err;
   char port_str[NI_MAXSERV];
   struct addrinfo *info, hints;
@@ -39,7 +39,7 @@ int main(int argc, char *argv[]) {
     exit(EXIT_FAILURE);
   }
   
-  fprintf(stderr, "(example-client) creating DBus proxy to DCM (%s)..\n",
+  fprintf(stderr, "(example-client) creating DBus proxy to KCM (%s)..\n",
 	  DBUS_SERVICE_NAME);
 
   /* This won't trigger activation! */
@@ -51,12 +51,13 @@ int main(int argc, char *argv[]) {
   }
     
   
-  fprintf(stderr, "(example-client) DBus calling into dcm..\n");
+  fprintf(stderr, "(example-client) DBus calling into kcm..\n");
 
   /* The method call will trigger activation, more on that later */
-  if(!edu_cmu_cs_diamond_opendiamond_dcm_client(proxy, name, &port, &error)) {
+  if(!edu_cmu_cs_kimberley_kcm_browse(proxy, name, interfaces, 
+				      &port, &error)) {
     /* Method failed, the GError is set, let's warn everyone */
-    g_warning("(example-client) dcm->client() method failed: %s", 
+    g_warning("(example-client) kcm->client() method failed: %s", 
 	      error->message);
     g_error_free(error);
     exit(EXIT_FAILURE);
@@ -84,7 +85,7 @@ int main(int argc, char *argv[]) {
     return FALSE;
   }
 
-  fprintf(stderr, "(example-client) connect()ing to dcm..\n");
+  fprintf(stderr, "(example-client) connect()ing to kcm..\n");
 
   if(connect(sockfd, info->ai_addr, sizeof(struct sockaddr_in)) < 0) {
     perror("connect");

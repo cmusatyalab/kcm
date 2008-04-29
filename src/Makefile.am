@@ -1,26 +1,26 @@
-bin_PROGRAMS = dcm
-bin_SCRIPTS = dcm_encrypt
+bin_PROGRAMS = kcm
+bin_SCRIPTS = kcm_encrypt
 
 noinst_PROGRAMS = example_client example_server
 
-dcm_SOURCES = client.c common.c common.h dcm.c dcm.h dcm-avahi.c dcm-avahi.h \
-              server.c dcm-glib.h
+kcm_SOURCES = avahi.c avahi.h client.c common.c common.h kcm.c kcm.h \
+              server.c kcm-glib.h
 example_client_SOURCES = example_client.c
 example_server_SOURCES = example_server.c common.c common.h
 
-BUILT_SOURCES = dcm-dbus-glue.h dcm-dbus-app-glue.h
+BUILT_SOURCES = kcm-dbus-glue.h kcm-dbus-app-glue.h
 
 # We don't want to install this header
 noinst_HEADERS = $(BUILT_SOURCES)
 
 # Correctly clean the generated headers, but keep the xml description
 CLEANFILES = $(BUILT_SOURCES)
-EXTRA_DIST = dcm.xml
+EXTRA_DIST = kcm.xml
 
 # Rule to generate glib D-Bus bindings
-dcm-dbus-glue.h: dcm.xml
-	dbus-binding-tool --mode=glib-server --prefix=dcm $<> $@
+kcm-dbus-glue.h: kcm.xml
+	dbus-binding-tool --mode=glib-server --prefix=kcm $<> $@
 
-dcm-dbus-app-glue.h: dcm.xml
-	dbus-binding-tool --mode=glib-client --prefix=dcm $<> $@
+kcm-dbus-app-glue.h: kcm.xml
+	dbus-binding-tool --mode=glib-client --prefix=kcm $<> $@
 

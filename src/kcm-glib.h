@@ -1,26 +1,31 @@
-#ifndef _DCM_GLIB_H_
-#define _DCM_GLIB_H_
+#ifndef _KCM_GLIB_H_
+#define _KCM_GLIB_H_
 
 typedef struct {
   GObject base;
-} DCM;
+} KCM;
 
 typedef struct {
   GObjectClass base;
   DBusGConnection *conn;
-} DCMClass;
+} KCMClass;
 
-static void dcm_init        (DCM *server);
-static void dcm_class_init  (DCMClass *class);
-GType       dcm_get_type    (void);
-gboolean    dcm_client      (DCM *server, 
-			     gchar *service_name, 
+static void kcm_init        (KCM *server);
+static void kcm_class_init  (KCMClass *class);
+GType       kcm_get_type    (void);
+
+gboolean    kcm_sense       (KCM *server, 
+			     gchar **interfaces, 
+			     GError **error);
+
+gboolean    kcm_browse      (KCM *server, 
+			     gchar *service_name,			     
 			     guint *port, 
 			     GError **error);
-gboolean    dcm_server      (DCM *server, 
+
+gboolean    kcm_publish     (KCM *server, 
 			     gchar *service_name,
 			     guint port, 
 			     GError **error);
 
-
-#endif /*_DCM_GLIB_H_ */
+#endif /*_KCM_GLIB_H_ */

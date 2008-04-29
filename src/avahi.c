@@ -4,6 +4,7 @@
 #include <string.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+
 #include <avahi-client/client.h>
 #include <avahi-client/lookup.h>
 #include <avahi-client/publish.h>
@@ -13,8 +14,8 @@
 #include <avahi-glib/glib-watch.h>
 #include <avahi-glib/glib-malloc.h>
 
+#include "avahi.h"
 #include "common.h"
-#include "dcm-avahi.h"
 
 
 static const AvahiPoll *avahi_gpoll_api = NULL;

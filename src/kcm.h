@@ -1,16 +1,16 @@
-#ifndef _DCM_H_
-#define _DCM_H_
+#ifndef _KCM_H_
+#define _KCM_H_
 
-#define DCM_DBUS_SERVICE_NAME "edu.cmu.cs.diamond.opendiamond.dcm"
-#define DCM_DBUS_SERVICE_PATH "/edu/cmu/cs/diamond/opendiamond/dcm"
-#define DCM_AVAHI_SERVICE_NAME "edu.cmu.cs.diamond.opendiamond.dcm"
+#define KCM_DBUS_SERVICE_NAME "edu.cmu.cs.kimberley.kcm"
+#define KCM_DBUS_SERVICE_PATH "/edu/cmu/cs/kimberley/kcm"
+#define KCM_AVAHI_SERVICE_NAME "edu.cmu.cs.kimberley.kcm"
 
 #define MAXCONN 8
 
 typedef enum {
   CONN_INTERNET = 1,
   CONN_BLUETOOTH
-} dcm_conn_type_t;
+} kcm_conn_type_t;
 
 typedef struct {
   pthread_t    tid;
@@ -22,4 +22,4 @@ typedef struct {
 void       *client_main     (void *arg);
 void       *server_main     (void *arg);
 
-#endif /*_DCM_H_ */
+#endif /*_KCM_H_ */
