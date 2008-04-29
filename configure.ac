@@ -1,4 +1,4 @@
-AC_INIT([dcm], [1.0], [diamond@cs.cmu.edu])
+AC_INIT([kcm], [1.0], [awolbach@cmu.edu])
 AC_PREREQ([2.59])
 AC_CONFIG_SRCDIR([config.h.in])
 AM_INIT_AUTOMAKE([foreign 1.8])
