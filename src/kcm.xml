@@ -3,8 +3,7 @@
   <interface name="edu.cmu.cs.kimberley.kcm">
 
     <method name="sense">
-      <arg type="as" name="interfaces"   direction="in"  />
-      <arg type="u"  name="port"         direction="in"  />
+      <arg type="as" name="interfaces"   direction="out"  />
     </method>
 
     <method name="publish">
