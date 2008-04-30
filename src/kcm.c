@@ -163,11 +163,11 @@ kcm_sense(KCM *server, gchar ***interfaces, GError **error) {
 
  
 gboolean
-kcm_browse(KCM *server, gchar *service_name, gchar **interfaces, guint *gport, GError **error) {
+kcm_browse(KCM *server, gchar *service_name, guint interfaces, guint *gport, GError **error) {
   volatile int port;
   pthread_t tid;
 
-  fprintf(stderr, "(kcm) Received client call (%s). \n", service_name);
+  fprintf(stderr, "(kcm) Received browse call (%s). \n", service_name);
 
 
   /* We should browse for services here now that we know exactly which
@@ -199,14 +199,15 @@ kcm_browse(KCM *server, gchar *service_name, gchar **interfaces, guint *gport, G
 
 
 gboolean
-kcm_publish(KCM *server, gchar *service_name, gchar **interfaces, guint gport, GError **error) {
+kcm_publish(KCM *server, gchar *service_name, guint interfaces, guint gport, GError **error) {
   server_data *sdp;
   struct sockaddr_in saddr;
   socklen_t slen;
   unsigned short port;
   int listenfd;
 
-  fprintf(stderr, "(kcm) Received server call (%s, %d).\n", service_name, gport);
+  fprintf(stderr, "(kcm) Received publish call (%s, %d).\n", 
+	  service_name, gport);
 
   fprintf(stderr, "(kcm-avahi) Setting up local port for Avahi services "
 	  "to listen on..\n");

@@ -17,12 +17,9 @@
 #include "avahi.h"
 #include "common.h"
 
+static kcm_avahi_internals *kcm_avahi_state = NULL;
 
-static const AvahiPoll *avahi_gpoll_api = NULL;
-static AvahiGLibPoll *avahi_gpoll = NULL;
-static AvahiClient *avahi_client = NULL;
-static char *service_name = "KCM Service";
-static int client_running = 0;
+
 static void create_services(AvahiClient *c, char *name, 
 			    char *type, unsigned short port);
 
@@ -94,16 +91,20 @@ resolve_callback(AvahiServiceResolver *r,
 }
 
 
+/*
+ * Function for handling callbacks from an Avahi service browser.
+ */
+
 static void 
-browse_callback(AvahiServiceBrowser *b,
-		AvahiIfIndex interface,
-		AvahiProtocol protocol,
-		AvahiBrowserEvent event,
-		const char *name,
-		const char *type,
-		const char *domain,
-		AVAHI_GCC_UNUSED AvahiLookupResultFlags flags,
-		void* userdata) 
+kcm_avahi_browse_callback(AvahiServiceBrowser *b,
+			  AvahiIfIndex interface,
+			  AvahiProtocol protocol,
+			  AvahiBrowserEvent event,
+			  const char *name,
+			  const char *type,
+			  const char *domain,
+			  AVAHI_GCC_UNUSED AvahiLookupResultFlags flags,
+			  void* userdata) 
 {
   AvahiClient *c = userdata;
   assert(b);
@@ -153,10 +154,12 @@ browse_callback(AvahiServiceBrowser *b,
 }
 
 
-/* Callback for state changes in the Avahi client */
+/*
+ * Function for handling callbacks for state changes in the Avahi client.
+ */
 
 static void
-avahi_client_callback(AVAHI_GCC_UNUSED AvahiClient *client, 
+kcm_avahi_client_callback(AVAHI_GCC_UNUSED AvahiClient *client, 
 		      AvahiClientState state, 
 		      void *userdata)
 {
@@ -211,18 +214,22 @@ avahi_client_callback(AVAHI_GCC_UNUSED AvahiClient *client,
 }
 
 
-/* Callback for state changes in the entry group */
+/*
+ * Function for callbacks for state changes in a service's entry group.
+ */
 
 static void 
-avahi_entry_group_callback(AvahiEntryGroup *g, 
-			   AvahiEntryGroupState state, 
-			   AVAHI_GCC_UNUSED void *userdata) 
+kcm_avahi_entry_group_callback(AvahiEntryGroup *g, 
+			       AvahiEntryGroupState state, 
+			       AVAHI_GCC_UNUSED void *userdata) 
 {
   switch (state) {
 
   case AVAHI_ENTRY_GROUP_ESTABLISHED :
 
-    /* The entry group has been established successfully */
+    /*
+     * The entry group has been established successfully.
+     */
 
     fprintf(stderr, "(kcm-avahi) Entry group successfully established.\n");
 
@@ -231,8 +238,10 @@ avahi_entry_group_callback(AvahiEntryGroup *g,
 
   case AVAHI_ENTRY_GROUP_COLLISION :
              
-    /* A service name collision happened. Fail, since the application
-     * now has no idea what name is being broadcast.  */
+    /* A service name collision happened. Fail in our case, since the 
+     * application now has no idea what name is being broadcast.  If in
+     * the future the user is presented with a list of possible services,
+     * then this code could be revisited to choose a new name. */
     
     fprintf(stderr, "(kcm-avahi) Entry group name collision; failure.\n");
 
@@ -245,7 +254,7 @@ avahi_entry_group_callback(AvahiEntryGroup *g,
 	    avahi_strerror(avahi_client_errno(avahi_entry_group_get_client(g))));
 
     /* Some kind of failure happened while we were registering our services */
-    avahi_glib_poll_free(avahi_gpoll);
+    //avahi_glib_poll_free(avahi_gpoll);
     break;
     
   case AVAHI_ENTRY_GROUP_UNCOMMITED:
@@ -255,26 +264,193 @@ avahi_entry_group_callback(AvahiEntryGroup *g,
 }
 
 
-static void
-create_services(AvahiClient *c, char *name, char *type, unsigned short port) {
-  int err;
-  AvahiEntryGroup *group = NULL;
-
-  if((c == NULL) || (name == NULL) || (type == NULL))
-    return;
+int
+kcm_avahi_init(GMainLoop *loop) 
+{
+  int err, i;
+  kcm_avahi_internals *temp;
 
 
-  /* If this is the first time we're called, let's create a new entry group */
+  if(kcm_avahi_internals != NULL) {
+    fprintf(stderr, "(kcm-avahi) KCM Avahi already initialized!\n");
+    return -1;
+  }
+
+  if(loop == NULL) {
+    fprintf(stderr, "(kcm-avahi) Bad GLib loop parameter.\n");
+    return -1;
+  }
+
+
+  /*
+   * Allocate and initialize Avahi client state.
+   */
+
+  temp = malloc(sizeof(kcm_avahi_internals));
+  if(temp == NULL) {
+    perror("malloc");
+    return -1;
+  }
+
+  temp->loop = loop;
+  temp->avahi_gpoll_api = NULL;
+  temp->avahi_gpoll = NULL;
+  temp->avahi_client = NULL;
+  temp->service_name = "KCM Service";
+  temp->client_running = 0;
+
+  err = pthread_mutex_init(&temp->mut, NULL);
+  if(err != 0) {
+    fprintf(stderr, "(kcm-avahi) pthread_mutex_init failed: %d\n", err);
+    goto init_fail;
+  }
+
+  err = pthread_mutex_lock(&temp->mut, NULL);
+  if(err != 0) {
+    fprintf(stderr, "(kcm-avahi) pthread_mutex_lock failed: %d\n", err);
+    goto init_fail;
+  }
+  
+
+  /*
+   * Tell avahi to use GLib memory allocation.
+   */
+
+  avahi_set_allocator(avahi_glib_allocator());
+
+  
+  /*
+   * Create a GLib polling primitive.
+   */
+
+  temp->avahi_gpoll = avahi_glib_poll_new(NULL, G_PRIORITY_DEFAULT);
+  if(temp->avahi_gpoll == NULL) {
+    fprintf(stderr, "(kcm-avahi) avahi_glib_poll_new failed.\n");
+    goto init_fail;
+  }
+
+  temp->avahi_gpoll_api = avahi_glib_poll_get(temp->avahi_gpoll);
+  if(temp->avahi_gpoll_api == NULL) {
+    fprintf(stderr, "(kcm-avahi) avahi_glib_poll_get failed.\n");
+    goto init_fail;
+  }
+  
+  
+  /*
+   * Create a new AvahiClient instance
+   */
+
+  avahi_client = avahi_client_new(temp->avahi_gpoll_api, 
+				  0, 
+				  avahi_client_callback,
+				  temp, 
+				  &err)
+  if(avahi_client == NULL) {
+    g_warning ("(kcm-avahi) Error initializing Avahi: %s", 
+	       avahi_strerror(error));
+    goto init_fail;
+  }
+
+  for(i=0; i<KCM_MAX_SERVICES; i++)
+    temp->kai_services[i] = NULL;
+
+  temp->kai_browse = NULL;
+
+  kcm_avahi_state = temp;
+  pthread_mutex_unlock(temp->mut);
+
+  return 0;
+
+  
+ init_fail:
+
+  if(temp != NULL) {
+    if(temp->avahi_client != NULL)
+      avahi_client_free(avahi_client);
+    if(temp->avahi_gpoll != NULL)
+      avahi_glib_poll_free(avahi_gpoll);
+  }
+  
+  return -1;
+}
+
+
+int
+kcm_avahi_publish(char *service_name, unsigned short port, unsigned int interfaces)
+{
+  int err, i;
+  AvahiEntryGroup *group;
+  kcm_publish_t *service;
+
+  if((loop == NULL) || (service_name == NULL)) {
+    fprintf(stderr, "(kcm-avahi) No service name specified!\n");
+    return -1;
+  }
+
+  if(kcm_avahi_state == NULL) {
+    fprintf(stderr, "(kcm-avahi) Trying to publish, but KCM Avahi"
+	    " not initialized!\n");
+    return -1;
+  }
+
+
+  fprintf(stderr, "(kcm-avahi) Registering %s with Avahi on port %u..\n", 
+	  service_name, port);
+
+
+  service = malloc(sizeof(kcm_avahi_publish_t));
+  if(service == NULL) {
+    perror("malloc");
+    return -1;
+  }
+
+  err = pthread_mutex_lock(kcm_avahi_state->kai_mut);
+  if(err != 0) {
+    fprintf(stderr, "(kcm-avahi) pthread_mutex_lock failed!\n");
+    goto publish_fail;
+  }
+
+
+  /*
+   * Perform bookkeeping of registered services.
+   */
+
+  for(i=0; i<KCM_MAX_SERVICES; i++) {
+    if(kcm_avahi_state->kai[i] == NULL) {
+      kcm_avahi_state->kai[i] = service;
+      break;
+    }
+  }
+
+  if(i >= KCM_MAX_SERVICES) {
+    fprintf(stderr, "(kcm-avahi) Too many services! Not registering %s..\n",
+	    service_name);
+    goto publish_fail;
+  }
+
+  service->group = group;
+  service->service_name = strdup(service_name);
+  service->port = port;
+
+
+
+  /*
+   * We must create a new entry group for each new service, or whenever
+   * a service is renamed.  TXT and port updates, however, can reuse
+   * an existing entry group with the AVAHI_PUBLISH_UPDATE flag.
+   */
 
   group = avahi_entry_group_new(c, avahi_entry_group_callback, NULL);
   if(group == NULL) {
     fprintf(stderr, "(kcm-avahi) Failed creating new entry group: %s\n", 
 	    avahi_strerror(avahi_client_errno(c)));
-    goto fail;
+    goto publish_fail;
   }
 
 
-  /* Add our service */
+  /* 
+   * Add the new service to the entry group.
+   */
 
   fprintf(stderr, "(kcm-avahi) Adding service '%s'\n", type);
 
@@ -284,11 +460,13 @@ create_services(AvahiClient *c, char *name, char *type, unsigned short port) {
   if(err < 0) {
     fprintf(stderr, "(kcm-avahi) Failed to add service: %s\n",
 	    avahi_strerror(err));
-    goto fail;
+    goto publish_fail;
   }
  
 
-  /* Tell the Avahi server to register the service */
+  /*
+   * Tell the Avahi daemon to register the service.
+   */
 
   fprintf(stderr, "(kcm-avahi) Committing service '%s'\n", name);
 
@@ -296,140 +474,96 @@ create_services(AvahiClient *c, char *name, char *type, unsigned short port) {
   if(err < 0) {
     fprintf(stderr, "(kcm-avahi) Failed to commit entry_group: %s\n",
 	    avahi_strerror(err));
-    goto fail;
+    goto publish_fail;
   }
 
-  return;
- 
- fail:
-  avahi_client_free(c);
+
+  pthread_mutex_unlock(kcm_avahi_state->kai_mut);
+
+  return 0;
+
+
+ publish_fail:
+
+  if(service != NULL)
+    free(service);
+
   avahi_entry_group_free(group);
   avahi_glib_poll_free(avahi_gpoll);
-}
-
-
-static int
-connect_to_avahi(GMainLoop *loop) {
-  int error;
-  
-  /* Optional: Tell avahi to use g_malloc and g_free */
-  avahi_set_allocator(avahi_glib_allocator());
-  
-  /* Create the GLib Adapter */
-  avahi_gpoll = avahi_glib_poll_new(NULL, G_PRIORITY_DEFAULT);
-  avahi_gpoll_api = avahi_glib_poll_get(avahi_gpoll);
-  
-  
-  /* Create a new AvahiClient instance */
-  if((avahi_client = avahi_client_new(avahi_gpoll_api, 0, 
-				      avahi_client_callback,
-				      loop, &error)) == NULL) {
-    g_warning ("Error initializing Avahi: %s", avahi_strerror(error));
-    goto fail;
-  }
-
-  return 0;
-  
- fail:
-  avahi_client_free(avahi_client);
-  avahi_client = NULL;
-  avahi_glib_poll_free(avahi_gpoll);
-  avahi_gpoll = NULL;
-  
-  return -1;
-}
-
-
-
-int
-avahi_server_main(GMainLoop *loop, char *name, unsigned short port) {
-
-  if(name == NULL) {
-    fprintf(stderr, "(kcm-avahi) No service name specified!\n");
-    return -1;
-  }
-
-
-  /* Allocate main loop objects and client. */
-
-  fprintf(stderr, "(kcm-avahi) Creating Avahi client..\n");
-
-  if(avahi_client == NULL) {
-    if(connect_to_avahi(loop) < 0) {
-      fprintf(stderr, "(kcm-avahi) Failed to connect to Avahi!\n ");
-      goto fail;
-    }
-  }
-
-  fprintf(stderr, "(kcm-avahi) Registering %s with Avahi on port %u..\n", 
-	  name, port);
-  
-  create_services(avahi_client, service_name, name, port);
-
-  return 0;
-
-
- fail:
-
-  /* Cleanup things */
-
-  if(avahi_client) {
-    avahi_client_free(avahi_client);
-    avahi_client = NULL;
-  }
 
   return -1;
 }
 
 
 int 
-avahi_client_main(GMainLoop *loop, char *name) {
-  AvahiServiceBrowser *sb = NULL;
+kcm_avahi_browse(char *service_name, unsigned int interfaces) 
+{
+  AvahiServiceBrowser *sb;
+  kcm_browse_t *browser;
+  int err;
 
-  /* Allocate main loop objects and client. */
-
-  fprintf(stderr, "(kcm-avahi) Connecting to Avahi..\n");
-
-  if(avahi_client == NULL) {
-    if(connect_to_avahi(loop) < 0) {
-      fprintf(stderr, "(kcm-avahi) Failed to create glib polling object "
-	      "+ api.\n");
-      goto fail;
-    }
+  if(kcm_avahi_state == NULL) {
+    fprintf(stderr, "(kcm-avahi) Trying to browse, but KCM Avahi"
+	    " not initialized!\n");
+    return -1;
   }
 
-  fprintf(stderr, "(kcm-avahi) Creating service browser for %s.. \n", name);
-  
-  /* Create the service browser */
+  browser = malloc(sizeof(kcm_avahi_browse_t));
+  if(browser == NULL) {
+    perror("malloc");
+    return -1;
+  }
 
-  remote_host.hostname[0] = '\0';
-  remote_host.port = 0;
+  err = pthread_mutex_lock(kcm_avahi_state->kai_mut);
+  if(err != 0) {
+    fprintf(stderr, "(kcm-avahi) pthread_mutex_lock failed!\n");
+    return -1;
+  }
 
-  sb = avahi_service_browser_new(avahi_client, 
-				 AVAHI_IF_UNSPEC,
-				 AVAHI_PROTO_UNSPEC,
-				 name, NULL, 0,
-				 browse_callback, 
-				 avahi_client);
-  if(sb == NULL) {
+  if(kcm_avahi_state->kai_browse != NULL) {
+    fprintf(stderr, "(kcm-avahi) Avahi browsing already in progress!\n");
+    goto browse_fail;
+  }
+
+
+  fprintf(stderr, "(kcm-avahi) Creating service browser for %s.. \n", 
+	  service_name);
+
+
+  /*
+   * Create the service browser.
+   */
+
+  browse->kab_hostname = NULL;
+  browse->kab_port = 0;
+
+  //for(i in interfaces)
+  browse->kab_browser = avahi_service_browser_new(kcm_avahi_state->kai_client,
+						  AVAHI_IF_UNSPEC,
+						  AVAHI_PROTO_UNSPEC,
+						  name, 
+						  NULL, 
+						  0,
+						  kcm_avahi_browse_callback, 
+						  kcm_avahi_state->kai_client);
+  if(browse->kab_browser == NULL) {
     fprintf(stderr, "(kcm-avahi) Failed to create service browser: %s\n", 
-	    avahi_strerror(avahi_client_errno(avahi_client)));
-    goto fail;
+	    avahi_strerror(avahi_client_errno(kcm_avahi_state->kai_client)));
+    goto browse_fail;
   }
+
+  //endfor
 
 
   return 0;
 
- fail:
 
-  /* Cleanup things */
+ browse_fail:
 
-  if(sb != NULL)
-    avahi_service_browser_free(sb);
-
-  if(avahi_client != NULL) {
-    avahi_client_free(avahi_client);
-    avahi_client = NULL;
+  if(browser != NULL) {
+    if(browser->kab_browser != NULL)
+      avahi_service_browser_free(sb);
+    free(browser);
   }
 
   return -1;

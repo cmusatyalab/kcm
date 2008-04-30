@@ -4,14 +4,39 @@
 #include <sys/param.h>
 #include <glib.h>
 
+#define KCM_MAX_SERVICES 16
+
+
 typedef struct {
-  unsigned short port;
-  char hostname[MAXPATHLEN];
-} host_t;
+  AvahiServiceBrowser *kab_browser;
+  unsigned short       kab_port;
+  char                *kab_hostname;
+} kcm_avahi_browse_t;
 
-extern volatile host_t remote_host;
 
-int avahi_client_main(GMainLoop *loop, char *sname);
-int avahi_server_main(GMainLoop *loop, char *sname, unsigned short port);
+typedef struct {
+  AvahiEntryGroup     *kap_group;
+  unsigned short       kap_port;
+  char                *kap_service_name
+} kcm_avahi_publish_t;
+
+
+typedef struct {
+  GMainLoop           *kai_loop;
+  struct mutex_t       kai_mut;
+  AvahiPoll           *kai_gpoll_api;
+  AvahiGLibPoll       *kai_gpoll;
+  AvahiClient         *kai_client;
+  char                *kai_service_name;
+  kcm_browse_t        *kai_browse;
+  kcm_publish_t        kai_services[KCM_MAX_SERVICES];
+} kcm_avahi_internals_t;
+
+
+int kcm_avahi_init(GMainLoop *loop);
+int kcm_avahi_browse(char *service_name);
+int kcm_avahi_publish(char *service_name, unsigned short port);
+int kcm_avahi_unpublish(char *service_name);
+
 
 #endif /*_DCM_AVAHI_H_ */
