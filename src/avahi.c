@@ -115,7 +115,6 @@ kcm_avahi_browse_callback(AvahiServiceBrowser *b,
 			  AVAHI_GCC_UNUSED AvahiLookupResultFlags flags,
 			  void* userdata) 
 {
-  AvahiClient *c = userdata;
   assert(b);
 
   /* Called whenever a new services becomes available on
@@ -138,12 +137,13 @@ kcm_avahi_browse_callback(AvahiServiceBrowser *b,
      * the callback function is called the server will free
      * the resolver for us. */
 
-    if (!(avahi_service_resolver_new(c, interface, protocol, name, type, 
+    if (!(avahi_service_resolver_new(avahi_service_browser_get_client(b), 
+				     interface, protocol, name, type, 
 				     domain, AVAHI_PROTO_UNSPEC, 0, 
 				     kcm_avahi_resolve_callback, userdata)))
       fprintf(stderr, "(kcm-avahi) Failed to create service resolver: %s\n", 
-	      avahi_strerror(avahi_client_errno(c)));
-             
+	      avahi_strerror(avahi_client_errno(avahi_service_browser_get_client(b))));
+    
     break;
  
   case AVAHI_BROWSER_REMOVE:

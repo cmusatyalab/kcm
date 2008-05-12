@@ -63,7 +63,7 @@ int main(int argc, char *argv[]) {
   }
 
   if(interface_strs != NULL) {
-    fprintf(stderr, "(example-server) Found some interfaces:\n");
+    fprintf(stderr, "(example-client) Found some interfaces:\n");
     for(i=0; interface_strs[i] != NULL; i++)
       fprintf(stderr, "\t%d: %s\n", i, interface_strs[i]);
     fprintf(stderr, "\n");
