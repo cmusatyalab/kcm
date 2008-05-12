@@ -17,7 +17,7 @@ typedef struct {
 typedef struct {
   AvahiEntryGroup     *kap_group;
   unsigned short       kap_port;
-  char                *kap_service_name
+  char                *kap_service_name;
 } kcm_avahi_publish_t;
 
 
@@ -34,8 +34,8 @@ typedef struct {
 
 
 int kcm_avahi_init(GMainLoop *loop);
-int kcm_avahi_browse(char *service_name);
-int kcm_avahi_publish(char *service_name, unsigned short port);
+int kcm_avahi_browse(char *service_name, int if_index);
+int kcm_avahi_publish(char *service_name, unsigned short port, int if_index);
 int kcm_avahi_unpublish(char *service_name);
 
 

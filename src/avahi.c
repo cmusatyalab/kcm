@@ -1,4 +1,5 @@
 #include <netinet/in.h>
+#include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -17,7 +18,7 @@
 #include "avahi.h"
 #include "common.h"
 
-static kcm_avahi_internals *kcm_avahi_state = NULL;
+static kcm_avahi_internals_t *kcm_avahi_state = NULL;
 
 
 static void create_services(AvahiClient *c, char *name, 
@@ -39,7 +40,7 @@ resolve_callback(AvahiServiceResolver *r,
 		 AvahiLookupResultFlags flags,
 		 AVAHI_GCC_UNUSED void* userdata)
 {
- 
+  kcm_browse_t *kb = (kcm_browse_t *)userdata;
   assert(r);
  
   /* Called whenever a service has been resolved successfully or timed out */
@@ -60,9 +61,11 @@ resolve_callback(AvahiServiceResolver *r,
       fprintf(stderr, "(kcm-avahi) Resolved service '%s' of type '%s' in "
 	      "domain '%s':\n", name, type, domain);
      
-      avahi_address_snprint(a, sizeof(a), address);
-      strncpy((char *)remote_host.hostname, a, MAXPATHLEN);
-      remote_host.port = port;
+      if(kb != NULL) {
+	avahi_address_snprint(a, sizeof(a), address);
+	strncpy(kb->kab_hostname, a, MAXPATHLEN);
+	kb->kab_port = port;
+      }
 
       t = avahi_string_list_to_string(txt);
       fprintf(stderr,
@@ -172,7 +175,6 @@ kcm_avahi_client_callback(AVAHI_GCC_UNUSED AvahiClient *client,
 
   case AVAHI_CLIENT_S_RUNNING:
 
-    client_running = 1;
     fprintf(stderr, "(kcm-avahi) Avahi client running.\n");
 
     break;
@@ -267,8 +269,8 @@ kcm_avahi_entry_group_callback(AvahiEntryGroup *g,
 int
 kcm_avahi_init(GMainLoop *loop) 
 {
-  int err, i;
-  kcm_avahi_internals *temp;
+  int err;
+  kcm_avahi_internals_t *temp;
 
 
   if(kcm_avahi_internals != NULL) {
@@ -376,12 +378,12 @@ kcm_avahi_init(GMainLoop *loop)
 
 
 int
-kcm_avahi_publish(char *service_name, unsigned short port, int if_index)
+kcm_avahi_publish(char *service_name, int if_index, unsigned short port)
 {
   int err, i;
   AvahiEntryGroup *group;
   AvahiIfIndex iface;
-  kcm_publish_t *service;
+  kcm_avahi_publish_t *service;
 
   if((loop == NULL) || (service_name == NULL)) {
     fprintf(stderr, "(kcm-avahi) No service name specified!\n");
@@ -394,7 +396,7 @@ kcm_avahi_publish(char *service_name, unsigned short port, int if_index)
     return -1;
   }
 
-  if(interface >= 0)
+  if(if_index >= 0)
     iface = if_index;
   else
     iface = AVAHI_IF_UNSPEC;
@@ -508,15 +510,15 @@ kcm_avahi_publish(char *service_name, unsigned short port, int if_index)
 
 
 int 
-kcm_avahi_browse(char *service_name, unsigned int interface) 
+kcm_avahi_browse(char *service_name, int if_index) 
 {
   AvahiServiceBrowser *sb;
   kcm_browse_t *browser;
   int err;
   enum AvahiIfIndex iface;
   
-  if(interface >= 0)
-    iface = interface;
+  if(if_index >= 0)
+    iface = if_index;
   else
     iface = AVAHI_IF_UNSPEC;      
 
@@ -562,7 +564,7 @@ kcm_avahi_browse(char *service_name, unsigned int interface)
 						  NULL, 
 						  0,
 						  kcm_avahi_browse_callback, 
-						  kcm_avahi_state->kai_client);
+						  kcm_avahi_state->kai_browse);
   if(browse->kab_browser == NULL) {
     fprintf(stderr, "(kcm-avahi) Failed to create service browser: %s\n", 
 	    avahi_strerror(avahi_client_errno(kcm_avahi_state->kai_client)));
