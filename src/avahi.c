@@ -18,11 +18,8 @@
 #include "avahi.h"
 #include "common.h"
 
+
 static kcm_avahi_internals_t *kcm_avahi_state = NULL;
-
-
-static void create_services(AvahiClient *c, char *name, 
-			    char *type, unsigned short port);
 
 
 static void 
@@ -269,7 +266,7 @@ kcm_avahi_entry_group_callback(AvahiEntryGroup *g,
 int
 kcm_avahi_init(GMainLoop *loop) 
 {
-  int err;
+  int err, i;
   kcm_avahi_internals_t *temp;
 
 
@@ -288,7 +285,7 @@ kcm_avahi_init(GMainLoop *loop)
    * Allocate and initialize Avahi client state.
    */
 
-  temp = malloc(sizeof(kcm_avahi_internals));
+  temp = malloc(sizeof(kcm_avahi_internals_t));
   if(temp == NULL) {
     perror("malloc");
     return -1;
@@ -306,7 +303,7 @@ kcm_avahi_init(GMainLoop *loop)
     goto init_fail;
   }
 
-  err = pthread_mutex_lock(&temp->kai_mut, NULL);
+  err = pthread_mutex_lock(&temp->kai_mut);
   if(err != 0) {
     fprintf(stderr, "(kcm-avahi) pthread_mutex_lock failed: %d\n", err);
     goto init_fail;
@@ -325,13 +322,13 @@ kcm_avahi_init(GMainLoop *loop)
    */
 
   temp->kai_gpoll = avahi_glib_poll_new(NULL, G_PRIORITY_DEFAULT);
-  if(temp->avahi_gpoll == NULL) {
+  if(temp->kai_gpoll == NULL) {
     fprintf(stderr, "(kcm-avahi) avahi_glib_poll_new failed.\n");
     goto init_fail;
   }
 
-  temp->kai_gpoll_api = avahi_glib_poll_get(temp->avahi_gpoll);
-  if(temp->avahi_gpoll_api == NULL) {
+  temp->kai_gpoll_api = avahi_glib_poll_get(temp->kai_gpoll);
+  if(temp->kai_gpoll_api == NULL) {
     fprintf(stderr, "(kcm-avahi) avahi_glib_poll_get failed.\n");
     goto init_fail;
   }
@@ -343,7 +340,7 @@ kcm_avahi_init(GMainLoop *loop)
 
   temp->kai_client = avahi_client_new(temp->kai_gpoll_api, 
 				      0, 
-				      avahi_client_callback,
+				      kcm_avahi_client_callback,
 				      temp, 
 				      &err);
   if(temp->kai_client == NULL) {
@@ -358,7 +355,7 @@ kcm_avahi_init(GMainLoop *loop)
   temp->kai_browse = NULL;
 
   kcm_avahi_state = temp;
-  pthread_mutex_unlock(temp->kai_mut);
+  pthread_mutex_unlock(&temp->kai_mut);
 
   return 0;
 
@@ -384,7 +381,7 @@ kcm_avahi_publish(char *service_name, int if_index, unsigned short port)
   AvahiIfIndex iface;
   kcm_avahi_publish_t *service;
 
-  if((loop == NULL) || (service_name == NULL)) {
+  if((loop(service_name == NULL)) {
     fprintf(stderr, "(kcm-avahi) No service name specified!\n");
     return -1;
   }

@@ -28,14 +28,14 @@ typedef struct {
   AvahiGLibPoll       *kai_gpoll;
   AvahiClient         *kai_client;
   char                *kai_service_name;
-  kcm_browse_t        *kai_browse;
-  kcm_publish_t        kai_services[KCM_MAX_SERVICES];
+  kcm_avahi_browse_t  *kai_browse;
+  kcm_avahi_publish_t  kai_services[KCM_MAX_SERVICES];
 } kcm_avahi_internals_t;
 
 
 int kcm_avahi_init(GMainLoop *loop);
 int kcm_avahi_browse(char *service_name, int if_index);
-int kcm_avahi_publish(char *service_name, unsigned short port, int if_index);
+int kcm_avahi_publish(char *service_name, int if_index, unsigned short port);
 int kcm_avahi_unpublish(char *service_name);
 
 
