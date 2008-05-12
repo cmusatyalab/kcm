@@ -205,6 +205,7 @@ kcm_browse(KCM *server, gchar *service_name, gint interface, guint *gport, GErro
 
   fprintf(stderr, "(kcm) Waiting for child thread to choose port..\n");
   while(parms.port == 0) continue;
+  fprintf(stderr, "(kcm) Child thread chose port: %d\n", params.port);
 
   *gport = parms.port;
 

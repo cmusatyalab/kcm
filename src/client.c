@@ -25,7 +25,7 @@ client_main(void *arg) {
   client_params_t *parms = arg;
   kcm_avahi_connect_info_t *host = parms->host;
 
-  fprintf(stderr, "(dcm-client) New thread starting..\n");
+  fprintf(stderr, "(kcm-client) New thread starting..\n");
 
 
   /* We should browse for services here now that we know exactly which
