@@ -2,6 +2,9 @@
 #define _KCM_AVAHI_H_
 
 #include <sys/param.h>
+#include <avahi-client/lookup.h>
+#include <avahi-client/publish.h>
+#include <avahi-glib/glib-watch.h>
 #include <glib.h>
 
 #define KCM_MAX_SERVICES 16

@@ -20,13 +20,13 @@ gboolean    kcm_sense       (KCM *server,
 
 gboolean    kcm_browse      (KCM *server, 
 			     gchar *service_name,			     
-			     gchar **interfaces, 
+			     gint interface, 
 			     guint *port, 
 			     GError **error);
 
 gboolean    kcm_publish     (KCM *server, 
 			     gchar *service_name,
-			     gchar **interfaces, 
+			     gint interface,
 			     guint port, 
 			     GError **error);
 

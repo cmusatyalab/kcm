@@ -166,20 +166,24 @@ gboolean
 kcm_browse(KCM *server, gchar *service_name, gint interface, guint *gport, GError **error) {
   volatile int port;
   pthread_t tid;
+  volatile client_params_t parms;
 
   fprintf(stderr, "(kcm) Received browse call (%s). \n", service_name);
+
+  parms.service_name = strdup(service_name);
+  parms.interface = interface;
+  parms.port = 0;
 
   /* Here, we create the thread that will establish and tunnel between
    * local and remote connections, found in "client.c". */
   
-  port = 0;
-  if(pthread_create(&tid, NULL, client_main, (void *)&port) != 0) {
+  if(pthread_create(&tid, NULL, client_main, (void *)&parms) != 0) {
     fprintf(stderr, "(kcm) Error creating server thread!\n");
     return FALSE;
   }
 
   fprintf(stderr, "(kcm) Waiting for child thread to choose port..\n");
-  while(port == 0) continue;
+  while(parms.port == 0) continue;
 
   *gport = port;
 
@@ -281,8 +285,6 @@ main(int argc, char *argv[]) {
 
   ctx = setup_ctx(certfile, keyfile);
 
-  bzero((void *)&remote_host, sizeof(host_t));
-  
   g_type_init();
   
   fprintf(stderr, "(kcm) creating new kcm object..\n");
@@ -292,6 +294,8 @@ main(int argc, char *argv[]) {
   fprintf(stderr, "(kcm) creating new gmain loop..\n");
 
   main_loop = g_main_loop_new(NULL, FALSE);
+
+  kcm_avahi_init(main_loop);
 
   g_main_loop_run(main_loop);
 

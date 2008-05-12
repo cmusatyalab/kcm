@@ -61,7 +61,7 @@ kcm_avahi_resolve_callback(AvahiServiceResolver *r,
      
       if(kb != NULL) {
 	avahi_address_snprint(a, sizeof(a), address);
-	kb->kab_hostname = strndup(a, AVAHI_ADDRESS_STR_MAX);
+	kb->kab_hostname = strdup(a);
 	kb->kab_port = port;
 
 	/*
@@ -69,7 +69,7 @@ kcm_avahi_resolve_callback(AvahiServiceResolver *r,
 	 */
 	if(kb->kab_conninfo != NULL) {
 	  kb->kab_conninfo->kci_port = port;
-	  kb->kab_conninfo->kci_hostname = strndup(a, AVAHI_ADDRESS_STR_MAX);
+	  kb->kab_conninfo->kci_hostname = strdup(a);
 	}
       }
 
@@ -385,7 +385,7 @@ int
 kcm_avahi_publish(char *service_name, int if_index, unsigned short port)
 {
   int err, i;
-  AvahiEntryGroup *group;
+  AvahiEntryGroup *group = NULL;
   AvahiIfIndex iface;
   kcm_avahi_publish_t *service;
 
@@ -522,7 +522,6 @@ kcm_avahi_publish(char *service_name, int if_index, unsigned short port)
 int 
 kcm_avahi_browse(char *service_name, int if_index, kcm_avahi_connect_info_t *conninfo) 
 {
-  AvahiServiceBrowser *sb;
   kcm_avahi_browse_t *browser;
   int err;
   AvahiIfIndex iface;    
