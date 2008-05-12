@@ -376,10 +376,11 @@ kcm_avahi_init(GMainLoop *loop)
 
 
 int
-kcm_avahi_publish(char *service_name, unsigned short port, unsigned int interfaces)
+kcm_avahi_publish(char *service_name, unsigned short port, int if_index)
 {
   int err, i;
   AvahiEntryGroup *group;
+  AvahiIfIndex iface;
   kcm_publish_t *service;
 
   if((loop == NULL) || (service_name == NULL)) {
@@ -393,6 +394,10 @@ kcm_avahi_publish(char *service_name, unsigned short port, unsigned int interfac
     return -1;
   }
 
+  if(interface >= 0)
+    iface = if_index;
+  else
+    iface = AVAHI_IF_UNSPEC;
 
   fprintf(stderr, "(kcm-avahi) Registering %s with Avahi on port %u..\n", 
 	  service_name, port);
@@ -454,9 +459,16 @@ kcm_avahi_publish(char *service_name, unsigned short port, unsigned int interfac
 
   fprintf(stderr, "(kcm-avahi) Adding service '%s'\n", type);
 
-  err = avahi_entry_group_add_service(group, AVAHI_IF_UNSPEC, 
-				      AVAHI_PROTO_UNSPEC, 0, name, 
-				      type, NULL, NULL, port, NULL);
+  err = avahi_entry_group_add_service(group,
+				      iface,
+				      AVAHI_PROTO_UNSPEC, 
+				      0, 
+				      name, 
+				      type, 
+				      NULL, 
+				      NULL, 
+				      port, 
+				      NULL);
   if(err < 0) {
     fprintf(stderr, "(kcm-avahi) Failed to add service: %s\n",
 	    avahi_strerror(err));
@@ -496,11 +508,17 @@ kcm_avahi_publish(char *service_name, unsigned short port, unsigned int interfac
 
 
 int 
-kcm_avahi_browse(char *service_name, unsigned int interfaces) 
+kcm_avahi_browse(char *service_name, unsigned int interface) 
 {
   AvahiServiceBrowser *sb;
   kcm_browse_t *browser;
   int err;
+  enum AvahiIfIndex iface;
+  
+  if(interface >= 0)
+    iface = interface;
+  else
+    iface = AVAHI_IF_UNSPEC;      
 
   if(kcm_avahi_state == NULL) {
     fprintf(stderr, "(kcm-avahi) Trying to browse, but KCM Avahi"
@@ -537,9 +555,8 @@ kcm_avahi_browse(char *service_name, unsigned int interfaces)
   browse->kab_hostname = NULL;
   browse->kab_port = 0;
 
-  //for(i in interfaces)
   browse->kab_browser = avahi_service_browser_new(kcm_avahi_state->kai_client,
-						  AVAHI_IF_UNSPEC,
+						  iface,
 						  AVAHI_PROTO_UNSPEC,
 						  name, 
 						  NULL, 

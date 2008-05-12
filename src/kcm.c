@@ -163,7 +163,7 @@ kcm_sense(KCM *server, gchar ***interfaces, GError **error) {
 
  
 gboolean
-kcm_browse(KCM *server, gchar *service_name, guint interfaces, guint *gport, GError **error) {
+kcm_browse(KCM *server, gchar *service_name, gint interface, guint *gport, GError **error) {
   volatile int port;
   pthread_t tid;
 
@@ -173,7 +173,9 @@ kcm_browse(KCM *server, gchar *service_name, guint interfaces, guint *gport, GEr
   /* We should browse for services here now that we know exactly which
    * service we're performing. */
 
-  if(avahi_client_main(main_loop, (char *)service_name) < 0) {
+  //kcm_avahi_init(main_loop);
+
+  if(kcm_avahi_browse((char *)service_name, (int)interface) < 0) {
     fprintf(stderr, "(kcm) Error connecting to Avahi!\n");
     return FALSE;
   }
@@ -199,7 +201,7 @@ kcm_browse(KCM *server, gchar *service_name, guint interfaces, guint *gport, GEr
 
 
 gboolean
-kcm_publish(KCM *server, gchar *service_name, guint interfaces, guint gport, GError **error) {
+kcm_publish(KCM *server, gchar *service_name, gint interface, guint gport, GError **error) {
   server_data *sdp;
   struct sockaddr_in saddr;
   socklen_t slen;
@@ -229,7 +231,9 @@ kcm_publish(KCM *server, gchar *service_name, guint interfaces, guint gport, GEr
   /* We should register services with Avahi now that we know exactly which
    * service we're performing. */
 
-  if(avahi_server_main(main_loop, (char *)service_name, port) < 0) {
+  //kcm_avahi_init(main_loop);
+
+  if(kcm_avahi_publish((char *)service_name, port, (int)interface) < 0) {
     fprintf(stderr, "(kcm) Error registering with Avahi!\n");
     return FALSE;
   }
