@@ -226,9 +226,6 @@ kcm_publish(KCM *server, gchar *service_name, gint interface, guint gport, GErro
   fprintf(stderr, "(kcm) Received publish call (%s, %d).\n", 
 	  service_name, gport);
 
-  fprintf(stderr, "(kcm-avahi) Setting up local port for Avahi services "
-	  "to listen on..\n");
-
   listenfd = listen_on_any_tcp_port();
   if(listenfd < 0) {
     fprintf(stderr, "(kcm-avahi) Couldn't create a listening socket!\n");
@@ -242,13 +239,19 @@ kcm_publish(KCM *server, gchar *service_name, gint interface, guint gport, GErro
   }
   port = ntohs(saddr.sin_port);
 
+  fprintf(stderr, "(kcm-avahi) Setting up local port (%d) for Avahi services "
+	  "to listen on..\n", port);
+
+
 
   /* We should register services with Avahi now that we know exactly which
    * service we're performing. */
 
   //kcm_avahi_init(main_loop);
 
-  if(kcm_avahi_publish((char *)service_name, port, (int)interface) < 0) {
+  if(kcm_avahi_publish((char *)service_name, 
+		       (int)interface,
+		       (unsigned short)port) < 0) {
     fprintf(stderr, "(kcm) Error registering with Avahi!\n");
     return FALSE;
   }

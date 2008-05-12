@@ -400,10 +400,14 @@ kcm_avahi_publish(char *service_name, int if_index, unsigned short port)
     return -1;
   }
 
-  if(if_index >= 0)
+  if(if_index >= 0) {
+    fprintf(stderr, "(kcm-avahi) Publishing on interface: %d\n", if_index);
     iface = if_index;
-  else
+  }
+  else {
+    fprintf(stderr, "(kcm-avahi) Publishing on all interfaces\n");
     iface = AVAHI_IF_UNSPEC;
+  }
 
   fprintf(stderr, "(kcm-avahi) Registering '%s' with Avahi on port %u..\n", 
 	  service_name, port);
@@ -532,10 +536,14 @@ kcm_avahi_browse(char *service_name, int if_index, kcm_avahi_connect_info_t *con
     return -1;
   }
 
-  if(if_index >= 0)
+  if(if_index >= 0) {
+    fprintf(stderr, "(kcm-avahi) Browsing on interface: %d\n", if_index);
     iface = if_index;
-  else
-    iface = AVAHI_IF_UNSPEC;  
+  }
+  else {
+    fprintf(stderr, "(kcm-avahi) Browsing on all interfaces\n");
+    iface = AVAHI_IF_UNSPEC;
+  }
 
   browser = malloc(sizeof(kcm_avahi_browse_t));
   if(browser == NULL) {
