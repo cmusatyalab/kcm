@@ -6,10 +6,11 @@
 #include <openssl/rand.h>
 #include <openssl/ssl.h>
 
+#include "avahi.h"
+
 typedef struct {
-  char *service_name;
-  unsigned int *port;
-  int interface;
+  volatile kcm_avahi_connect_info_t *host;
+  volatile unsigned int port;
 } client_params_t;
 
 ssize_t readn(int fd, void *vptr, size_t n); 

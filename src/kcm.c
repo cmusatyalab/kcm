@@ -166,26 +166,46 @@ gboolean
 kcm_browse(KCM *server, gchar *service_name, gint interface, guint *gport, GError **error) {
   volatile int port;
   pthread_t tid;
-  volatile client_params_t parms;
+  kcm_avahi_connect_info_t *host;
+  volatile client_params_t *parms;
 
   fprintf(stderr, "(kcm) Received browse call (%s). \n", service_name);
 
-  parms.service_name = strdup(service_name);
-  parms.interface = interface;
-  parms.port = 0;
+
+  /*
+   * In this function, we create a new thread that waits for Avahi service
+   * discovery to succeed.  It will function as connection establisher and
+   * then as a tunneling thread.  The parent thread then creates the service
+   * browser and returns, which allows the GLib loop to continue (and thus
+   * Avahi to perform service discovery).
+   */
+
+  host = malloc(sizeof(kcm_avahi_connect_info_t));
+  if(host == NULL)
+    return FALSE;
+
+  host->kci_hostname = NULL;
+  host->kci_port = 0;
+
+  parms->host = host;
 
   /* Here, we create the thread that will establish and tunnel between
    * local and remote connections, found in "client.c". */
-  
-  if(pthread_create(&tid, NULL, client_main, (void *)&parms) != 0) {
+
+  if(kcm_avahi_browse(service_name, interface, host) < 0) {
+    fprintf(stderr, "(kcm) Error connecting to Avahi!\n");
+    return FALSE;
+  }
+
+  if(pthread_create(&tid, NULL, client_main, (void *)parms) != 0) {
     fprintf(stderr, "(kcm) Error creating server thread!\n");
     return FALSE;
   }
 
   fprintf(stderr, "(kcm) Waiting for child thread to choose port..\n");
-  while(parms.port == 0) continue;
+  while(parms->port == 0) continue;
 
-  *gport = port;
+  *gport = parms->port;
 
   fprintf(stderr, "(kcm) Returning from client() call!\n");
 
