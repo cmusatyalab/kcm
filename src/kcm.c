@@ -166,7 +166,7 @@ kcm_sense(KCM *server, gchar ***interfaces, GError **error) {
 gboolean
 kcm_browse(KCM *server, gchar *service_name, gint interface, guint *gport, GError **error) {
   pthread_t tid;
-  kcm_avahi_connect_info_t *host;
+  volatile  kcm_avahi_connect_info_t *host;
   volatile client_params_t parms;
   char *sname_copy = strdup(service_name);
 

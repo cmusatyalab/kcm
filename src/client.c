@@ -23,7 +23,7 @@ client_main(void *arg) {
   struct sockaddr_in saddr;
   SSL *remote_ssl;
   client_params_t *parms = arg;
-  kcm_avahi_connect_info_t *host = parms->host;
+  volatile kcm_avahi_connect_info_t *host = parms->host;
 
   fprintf(stderr, "(kcm-client) New thread starting..\n");
 
@@ -44,19 +44,18 @@ client_main(void *arg) {
   }
   parms->port = sp = ntohs(saddr.sin_port);
 
+  fprintf(stderr, "(kcm-client) Listening locally on port %u..\n", sp);
+
 
   /*
    * Now wait until Avahi callbacks trigger after service discovery.
    */
 
-  while(host->kci_port == 0)
-    continue;
-
-
-  fprintf(stderr, "(kcm-client) Listening locally on port %u..\n", sp);
-
   fprintf(stderr, "(kcm-client) Waiting for browser and resolver callbacks "
 	  "with connection info.\n");
+
+  while(host->kci_port == 0)
+    continue;
 
 
   fprintf(stderr, "(kcm-client) Making remote connection to %s:%d..\n",
