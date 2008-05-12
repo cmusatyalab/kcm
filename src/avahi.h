@@ -23,6 +23,7 @@ typedef struct {
 
 typedef struct {
   AvahiServiceBrowser      *kab_browser;
+  char		           *kab_service_name;
   kcm_avahi_connect_info_t *kab_conninfo;
   unsigned short            kab_port;
   char                     *kab_hostname;

@@ -116,6 +116,7 @@ kcm_avahi_browse_callback(AvahiServiceBrowser *b,
 			  void *userdata) 
 {
   assert(b);
+  kcm_avahi_browse_t *browser = userdata;
 
   /* Called whenever a new services becomes available on
    * the LAN or is removed from the LAN */
@@ -137,13 +138,17 @@ kcm_avahi_browse_callback(AvahiServiceBrowser *b,
      * the callback function is called the server will free
      * the resolver for us. */
 
-    if (!(avahi_service_resolver_new(avahi_service_browser_get_client(b), 
-				     interface, protocol, name, type, 
-				     domain, AVAHI_PROTO_UNSPEC, 0, 
-				     kcm_avahi_resolve_callback, userdata)))
-      fprintf(stderr, "(kcm-avahi) Failed to create service resolver: %s\n", 
-	      avahi_strerror(avahi_client_errno(avahi_service_browser_get_client(b))));
-    
+    if(!strcmp(browser->kab_service_name, name)) {
+
+      fprintf(stderr, "(kcm-avahi) Both service name and type match!\n");
+      if (!(avahi_service_resolver_new(avahi_service_browser_get_client(b), 
+				       interface, protocol, name, type, 
+				       domain, AVAHI_PROTO_UNSPEC, 0, 
+				       kcm_avahi_resolve_callback, userdata)))
+	fprintf(stderr, "(kcm-avahi) Failed to create service resolver: %s\n", 
+		avahi_strerror(avahi_client_errno(avahi_service_browser_get_client(b))));
+    }
+
     break;
  
   case AVAHI_BROWSER_REMOVE:
@@ -567,21 +572,21 @@ kcm_avahi_browse(char *service_name, int if_index, kcm_avahi_connect_info_t *con
   kcm_avahi_state->kai_browse = browser;
 
 
-  fprintf(stderr, "(kcm-avahi) Creating service browser for %s.. \n", 
-	  service_name);
+  fprintf(stderr, "(kcm-avahi) Creating service browser for name:%s, type:%s.. \n", service_name, KCM_AVAHI_TYPE);
 
 
   /*
    * Create the service browser.
    */
 
+  browser->kab_service_name = strdup(service_name);
   browser->kab_hostname = NULL;
   browser->kab_port = 0;
 
   browser->kab_browser = avahi_service_browser_new(kcm_avahi_state->kai_client,
 						   iface,
 						   AVAHI_PROTO_UNSPEC,
-						   service_name, 
+						   KCM_AVAHI_TYPE,
 						   NULL, 
 						   0,
 						   kcm_avahi_browse_callback, 
