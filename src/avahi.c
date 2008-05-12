@@ -67,10 +67,21 @@ kcm_avahi_resolve_callback(AvahiServiceResolver *r,
 	/*
 	 * Send information outside of Avahi module.
 	 */
+
+	pthread_mutex_lock(&kcm_avahi_state->kai_mut);
+
 	if(kb->kab_conninfo != NULL) {
 	  strcpy(kb->kab_conninfo->kci_hostname, a);
 	  kb->kab_conninfo->kci_port = port;
 	}
+
+
+	/*
+	 * Notify Avahi that we are no longer browsing.
+	 */
+
+	avahi_service_browser_free(kcm_avahi_state->kai_browse);
+	kcm_avahi_state->kai_browse = NULL; 
       }
 
       t = avahi_string_list_to_string(txt);
