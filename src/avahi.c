@@ -80,7 +80,8 @@ kcm_avahi_resolve_callback(AvahiServiceResolver *r,
 	 * Notify Avahi that we are no longer browsing.
 	 */
 
-	avahi_service_browser_free(kcm_avahi_state->kai_browse);
+	avahi_service_browser_free(kcm_avahi_state->kai_browse->kab_browser);
+	free(kcm_avahi_state->kai_browse);
 	kcm_avahi_state->kai_browse = NULL; 
 
 	pthread_mutex_unlock(&kcm_avahi_state->kai_mut);
