@@ -3,6 +3,7 @@
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <strings.h>
 #include <sys/select.h>
 #include <sys/socket.h>
@@ -205,7 +206,7 @@ kcm_browse(KCM *server, gchar *service_name, gint interface, guint *gport, GErro
 
   fprintf(stderr, "(kcm) Waiting for child thread to choose port..\n");
   while(parms.port == 0) continue;
-  fprintf(stderr, "(kcm) Child thread chose port: %d\n", params.port);
+  fprintf(stderr, "(kcm) Child thread chose port: %d\n", parms.port);
 
   *gport = parms.port;
 

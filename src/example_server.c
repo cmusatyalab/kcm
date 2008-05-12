@@ -23,7 +23,8 @@ int main(int argc, char *argv[]) {
   unsigned short port = 0;
   unsigned int len, i;
   gchar *name = KCM_SERVICE_NAME, **interface_strs = NULL;
-  guint gport = 0, interface = -1;
+  guint gport = 0;
+  gint interface = -1;
   struct sockaddr_in saddr;
 
   fprintf(stderr, "(example-server) starting up (pid=%d)..\n", getpid());
@@ -78,7 +79,7 @@ int main(int argc, char *argv[]) {
   /* The method call will trigger activation. */
   if(!edu_cmu_cs_kimberley_kcm_sense(proxy, &interface_strs, &error)) {
     /* Method failed, the GError is set, let's warn everyone */
-    g_warning("(example-server) kcm->client() method failed: %s", 
+    g_warning("(example-server) kcm->sense() method failed: %s", 
 	      error->message);
     g_error_free(error);
     exit(EXIT_FAILURE);
@@ -98,7 +99,7 @@ int main(int argc, char *argv[]) {
   if(!edu_cmu_cs_kimberley_kcm_publish(proxy, name, interface, 
 				       port, &error)) {
     if(error != NULL) {
-      g_warning("server() method failed: %s", error->message);
+      g_warning("kcm->publish() method failed: %s", error->message);
       g_error_free(error);
     }
     exit(EXIT_FAILURE);
