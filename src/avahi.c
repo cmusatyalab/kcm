@@ -9,6 +9,7 @@
 #include <avahi-client/client.h>
 #include <avahi-client/lookup.h>
 #include <avahi-client/publish.h>
+#include <avahi-common/address.h>
 #include <avahi-common/alternative.h>
 #include <avahi-common/error.h>
 #include <avahi-common/timeval.h>
@@ -23,19 +24,19 @@ static kcm_avahi_internals_t *kcm_avahi_state = NULL;
 
 
 static void 
-resolve_callback(AvahiServiceResolver *r,
-		 AVAHI_GCC_UNUSED AvahiIfIndex interface,
-		 AVAHI_GCC_UNUSED AvahiProtocol protocol,
-		 AvahiResolverEvent event,
-		 const char *name,
-		 const char *type,
-		 const char *domain,
-		 const char *hostname,
-		 const AvahiAddress *address,
-		 uint16_t port,
-		 AvahiStringList *txt,
-		 AvahiLookupResultFlags flags,
-		 AVAHI_GCC_UNUSED void* userdata)
+kcm_avahi_resolve_callback(AvahiServiceResolver *r,
+			   AVAHI_GCC_UNUSED AvahiIfIndex interface,
+			   AVAHI_GCC_UNUSED AvahiProtocol protocol,
+			   AvahiResolverEvent event,
+			   const char *name,
+			   const char *type,
+			   const char *domain,
+			   const char *hostname,
+			   const AvahiAddress *address,
+			   uint16_t port,
+			   AvahiStringList *txt,
+			   AvahiLookupResultFlags flags,
+			   AVAHI_GCC_UNUSED void* userdata)
 {
   kcm_avahi_browse_t *kb = (kcm_avahi_browse_t *)userdata;
   assert(r);
@@ -60,8 +61,16 @@ resolve_callback(AvahiServiceResolver *r,
      
       if(kb != NULL) {
 	avahi_address_snprint(a, sizeof(a), address);
-	strncpy(kb->kab_hostname, a, MAXPATHLEN);
+	kb->kab_hostname = strndup(a, AVAHI_ADDRESS_STR_MAX);
 	kb->kab_port = port;
+
+	/*
+	 * Send information outside of Avahi module.
+	 */
+	if(kb->kab_conninfo != NULL) {
+	  kb->kab_conninfo->kci_port = port;
+	  kb->kab_conninfo->kci_hostname = strndup(a, AVAHI_ADDRESS_STR_MAX);
+	}
       }
 
       t = avahi_string_list_to_string(txt);
@@ -118,12 +127,11 @@ kcm_avahi_browse_callback(AvahiServiceBrowser *b,
     fprintf(stderr, "(kcm-avahi) Browser failure: %s\n", 
 	    avahi_strerror(avahi_client_errno(
 					avahi_service_browser_get_client(b))));
-    //    avahi_simple_poll_quit(simple_poll);
     return;
 
   case AVAHI_BROWSER_NEW:
     fprintf(stderr, "(kcm-avahi) Found service '%s' of type '%s' in "
-	    "domain '%s'\n", name, type, domain);
+	    "domain '%s' on interface '%d'\n", name, type, domain, interface);
 
     /* We ignore the returned resolver object. In the callback
      * function we free it. If the server is terminated before
@@ -132,7 +140,7 @@ kcm_avahi_browse_callback(AvahiServiceBrowser *b,
 
     if (!(avahi_service_resolver_new(c, interface, protocol, name, type, 
 				     domain, AVAHI_PROTO_UNSPEC, 0, 
-				     resolve_callback, c)))
+				     kcm_avahi_resolve_callback, userdata)))
       fprintf(stderr, "(kcm-avahi) Failed to create service resolver: %s\n", 
 	      avahi_strerror(avahi_client_errno(c)));
              
@@ -140,7 +148,7 @@ kcm_avahi_browse_callback(AvahiServiceBrowser *b,
  
   case AVAHI_BROWSER_REMOVE:
     fprintf(stderr, "(kcm-avahi) Lost service '%s' of type '%s' in domain"
-	    " '%s'\n", name, type, domain);
+	    " '%s' on interface '%d'\n", name, type, domain, interface);
     break;
 
   case AVAHI_BROWSER_ALL_FOR_NOW:
@@ -381,7 +389,7 @@ kcm_avahi_publish(char *service_name, int if_index, unsigned short port)
   AvahiIfIndex iface;
   kcm_avahi_publish_t *service;
 
-  if((loop(service_name == NULL)) {
+  if(service_name == NULL) {
     fprintf(stderr, "(kcm-avahi) No service name specified!\n");
     return -1;
   }
@@ -397,7 +405,7 @@ kcm_avahi_publish(char *service_name, int if_index, unsigned short port)
   else
     iface = AVAHI_IF_UNSPEC;
 
-  fprintf(stderr, "(kcm-avahi) Registering %s with Avahi on port %u..\n", 
+  fprintf(stderr, "(kcm-avahi) Registering '%s' with Avahi on port %u..\n", 
 	  service_name, port);
 
 
@@ -407,7 +415,7 @@ kcm_avahi_publish(char *service_name, int if_index, unsigned short port)
     return -1;
   }
 
-  err = pthread_mutex_lock(kcm_avahi_state->kai_mut);
+  err = pthread_mutex_lock(&kcm_avahi_state->kai_mut);
   if(err != 0) {
     fprintf(stderr, "(kcm-avahi) pthread_mutex_lock failed!\n");
     goto publish_fail;
@@ -419,8 +427,8 @@ kcm_avahi_publish(char *service_name, int if_index, unsigned short port)
    */
 
   for(i=0; i<KCM_MAX_SERVICES; i++) {
-    if(kcm_avahi_state->kai[i] == NULL) {
-      kcm_avahi_state->kai[i] = service;
+    if(kcm_avahi_state->kai_services[i] == NULL) {
+      kcm_avahi_state->kai_services[i] = service;
       break;
     }
   }
@@ -431,11 +439,6 @@ kcm_avahi_publish(char *service_name, int if_index, unsigned short port)
     goto publish_fail;
   }
 
-  service->group = group;
-  service->service_name = strdup(service_name);
-  service->port = port;
-
-
 
   /*
    * We must create a new entry group for each new service, or whenever
@@ -443,26 +446,34 @@ kcm_avahi_publish(char *service_name, int if_index, unsigned short port)
    * an existing entry group with the AVAHI_PUBLISH_UPDATE flag.
    */
 
-  group = avahi_entry_group_new(c, avahi_entry_group_callback, NULL);
+  group = avahi_entry_group_new(kcm_avahi_state->kai_client, 
+				kcm_avahi_entry_group_callback, 
+				NULL);
   if(group == NULL) {
     fprintf(stderr, "(kcm-avahi) Failed creating new entry group: %s\n", 
-	    avahi_strerror(avahi_client_errno(c)));
+	    avahi_strerror(avahi_client_errno(kcm_avahi_state->kai_client)));
     goto publish_fail;
   }
+
+
+  service->kap_group = group;
+  service->kap_service_name = strdup(service_name);
+  service->kap_port = port;
 
 
   /* 
    * Add the new service to the entry group.
    */
 
-  fprintf(stderr, "(kcm-avahi) Adding service '%s'\n", type);
+  fprintf(stderr, "(kcm-avahi) Adding service '%s'\n", 
+	  service->kap_service_name);
 
   err = avahi_entry_group_add_service(group,
 				      iface,
 				      AVAHI_PROTO_UNSPEC, 
 				      0, 
-				      name, 
-				      type, 
+				      service->kap_service_name, 
+				      KCM_AVAHI_TYPE,
 				      NULL, 
 				      NULL, 
 				      port, 
@@ -478,7 +489,8 @@ kcm_avahi_publish(char *service_name, int if_index, unsigned short port)
    * Tell the Avahi daemon to register the service.
    */
 
-  fprintf(stderr, "(kcm-avahi) Committing service '%s'\n", name);
+  fprintf(stderr, "(kcm-avahi) Committing service '%s'\n", 
+	  service->kap_service_name);
 
   err = avahi_entry_group_commit(group);
   if(err < 0) {
@@ -488,35 +500,32 @@ kcm_avahi_publish(char *service_name, int if_index, unsigned short port)
   }
 
 
-  pthread_mutex_unlock(kcm_avahi_state->kai_mut);
+  pthread_mutex_unlock(&kcm_avahi_state->kai_mut);
 
   return 0;
 
 
  publish_fail:
 
+  
+  
   if(service != NULL)
     free(service);
 
-  avahi_entry_group_free(group);
-  avahi_glib_poll_free(avahi_gpoll);
+  if(group)
+    avahi_entry_group_free(group);
 
   return -1;
 }
 
 
 int 
-kcm_avahi_browse(char *service_name, int if_index) 
+kcm_avahi_browse(char *service_name, int if_index, kcm_avahi_connect_info_t *conninfo) 
 {
   AvahiServiceBrowser *sb;
-  kcm_browse_t *browser;
+  kcm_avahi_browse_t *browser;
   int err;
-  enum AvahiIfIndex iface;
-  
-  if(if_index >= 0)
-    iface = if_index;
-  else
-    iface = AVAHI_IF_UNSPEC;      
+  AvahiIfIndex iface;    
 
   if(kcm_avahi_state == NULL) {
     fprintf(stderr, "(kcm-avahi) Trying to browse, but KCM Avahi"
@@ -524,13 +533,20 @@ kcm_avahi_browse(char *service_name, int if_index)
     return -1;
   }
 
+  if(if_index >= 0)
+    iface = if_index;
+  else
+    iface = AVAHI_IF_UNSPEC;  
+
   browser = malloc(sizeof(kcm_avahi_browse_t));
   if(browser == NULL) {
     perror("malloc");
     return -1;
   }
 
-  err = pthread_mutex_lock(kcm_avahi_state->kai_mut);
+  browser->kab_conninfo = conninfo;
+
+  err = pthread_mutex_lock(&kcm_avahi_state->kai_mut);
   if(err != 0) {
     fprintf(stderr, "(kcm-avahi) pthread_mutex_lock failed!\n");
     return -1;
@@ -541,6 +557,8 @@ kcm_avahi_browse(char *service_name, int if_index)
     goto browse_fail;
   }
 
+  kcm_avahi_state->kai_browse = browser;
+
 
   fprintf(stderr, "(kcm-avahi) Creating service browser for %s.. \n", 
 	  service_name);
@@ -550,25 +568,22 @@ kcm_avahi_browse(char *service_name, int if_index)
    * Create the service browser.
    */
 
-  browse->kab_hostname = NULL;
-  browse->kab_port = 0;
+  browser->kab_hostname = NULL;
+  browser->kab_port = 0;
 
-  browse->kab_browser = avahi_service_browser_new(kcm_avahi_state->kai_client,
-						  iface,
-						  AVAHI_PROTO_UNSPEC,
-						  name, 
-						  NULL, 
-						  0,
-						  kcm_avahi_browse_callback, 
-						  kcm_avahi_state->kai_browse);
-  if(browse->kab_browser == NULL) {
+  browser->kab_browser = avahi_service_browser_new(kcm_avahi_state->kai_client,
+						   iface,
+						   AVAHI_PROTO_UNSPEC,
+						   service_name, 
+						   NULL, 
+						   0,
+						   kcm_avahi_browse_callback, 
+						   kcm_avahi_state->kai_browse);
+  if(browser->kab_browser == NULL) {
     fprintf(stderr, "(kcm-avahi) Failed to create service browser: %s\n", 
 	    avahi_strerror(avahi_client_errno(kcm_avahi_state->kai_client)));
     goto browse_fail;
   }
-
-  //endfor
-
 
   return 0;
 
@@ -577,7 +592,7 @@ kcm_avahi_browse(char *service_name, int if_index)
 
   if(browser != NULL) {
     if(browser->kab_browser != NULL)
-      avahi_service_browser_free(sb);
+      avahi_service_browser_free(browser->kab_browser);
     free(browser);
   }
 

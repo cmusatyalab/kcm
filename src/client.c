@@ -13,7 +13,6 @@
 #include "avahi.h"
 #include "common.h"
 
-volatile host_t remote_host;
 
 void *
 client_main(void *arg) {
@@ -23,9 +22,32 @@ client_main(void *arg) {
   socklen_t slen;
   struct sockaddr_in saddr;
   SSL *remote_ssl;
+  kcm_avahi_connection_info_t host;
+  
 
   fprintf(stderr, "(dcm-client) New thread starting..\n");
 
+
+  /* We should browse for services here now that we know exactly which
+   * service we're performing. */
+
+  //kcm_avahi_init(main_loop);
+  host.kci_hostname = NULL;
+  host.kci_port = 0;
+
+  if(kcm_avahi_browse((char *)service_name, (int)interface, &host) < 0) {
+    fprintf(stderr, "(kcm) Error connecting to Avahi!\n");
+    *port = -1;
+    pthread_exit((void *)-1);
+  }
+
+
+  /*
+   * Wait until Avahi callbacks trigger after service discovery.
+   */
+
+  while(host.kci_hostname == NULL)
+    continue;
 
   listenfd = listen_on_any_tcp_port_locally();
   if(listenfd < 0) {
@@ -45,14 +67,11 @@ client_main(void *arg) {
   fprintf(stderr, "(dcm-client) Waiting for browser and resolver callbacks "
 	  "with connection info.\n");
 
-  while(remote_host.port == 0)
-    continue;
 
   fprintf(stderr, "(dcm-client) Making remote connection to %s:%d..\n",
-	  remote_host.hostname, remote_host.port);
+	  host.kci_hostname, host.kci_port);
 
-  remote_connfd = make_tcpip_connection((char *)remote_host.hostname, 
-					remote_host.port);
+  remote_connfd = make_tcpip_connection(host.kci_hostname, host.kci_port);
   if(remote_connfd < 0) {
     fprintf(stderr, "(dcm-client) Couldn't make remote connection!\n");
     pthread_exit((void *)-1);

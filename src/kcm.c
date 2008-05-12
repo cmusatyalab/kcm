@@ -169,17 +169,6 @@ kcm_browse(KCM *server, gchar *service_name, gint interface, guint *gport, GErro
 
   fprintf(stderr, "(kcm) Received browse call (%s). \n", service_name);
 
-
-  /* We should browse for services here now that we know exactly which
-   * service we're performing. */
-
-  //kcm_avahi_init(main_loop);
-
-  if(kcm_avahi_browse((char *)service_name, (int)interface) < 0) {
-    fprintf(stderr, "(kcm) Error connecting to Avahi!\n");
-    return FALSE;
-  }
-  
   /* Here, we create the thread that will establish and tunnel between
    * local and remote connections, found in "client.c". */
   
