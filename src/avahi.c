@@ -82,6 +82,8 @@ kcm_avahi_resolve_callback(AvahiServiceResolver *r,
 
 	avahi_service_browser_free(kcm_avahi_state->kai_browse);
 	kcm_avahi_state->kai_browse = NULL; 
+
+	pthread_mutex_unlock(&kcm_avahi_state->kai_mut);
       }
 
       t = avahi_string_list_to_string(txt);
@@ -569,18 +571,10 @@ kcm_avahi_browse(char *service_name, int if_index, kcm_avahi_connect_info_t *con
 
   browser->kab_conninfo = conninfo;
 
-  err = pthread_mutex_lock(&kcm_avahi_state->kai_mut);
-  if(err != 0) {
-    fprintf(stderr, "(kcm-avahi) pthread_mutex_lock failed!\n");
-    return -1;
-  }
-
   if(kcm_avahi_state->kai_browse != NULL) {
     fprintf(stderr, "(kcm-avahi) Avahi browsing already in progress!\n");
     goto browse_fail;
   }
-
-  kcm_avahi_state->kai_browse = browser;
 
 
   fprintf(stderr, "(kcm-avahi) Creating service browser for name:%s, type:%s.. \n", service_name, KCM_AVAHI_TYPE);
@@ -607,6 +601,22 @@ kcm_avahi_browse(char *service_name, int if_index, kcm_avahi_connect_info_t *con
 	    avahi_strerror(avahi_client_errno(kcm_avahi_state->kai_client)));
     goto browse_fail;
   }
+
+  err = pthread_mutex_lock(&kcm_avahi_state->kai_mut);
+  if(err != 0) {
+    fprintf(stderr, "(kcm-avahi) pthread_mutex_lock failed!\n");
+    return -1;
+  }
+
+  kcm_avahi_state->kai_browse = browser;
+
+  err = pthread_mutex_unlock(&kcm_avahi_state->kai_mut);
+  if(err != 0) {
+    fprintf(stderr, "(kcm-avahi) pthread_mutex_unlock failed!\n");
+    return -1;
+  }
+
+
 
   return 0;
 
