@@ -21,7 +21,7 @@ int main(int argc, char *argv[]) {
   DBusGProxy *proxy;
   GError *error = NULL;
   gchar *name = KCM_SERVICE_NAME, **interface_strs = NULL;
-  guint port = 0, interfaces = 1;
+  guint port = 0, interface = -1;
   int sockfd, err, i;
   char port_str[NI_MAXSERV];
   struct addrinfo *info, hints;
@@ -72,7 +72,7 @@ int main(int argc, char *argv[]) {
 
   fprintf(stderr, "(example-client) DBus calling into kcm (browse)..\n");
 
-  if(!edu_cmu_cs_kimberley_kcm_browse(proxy, name, interfaces, 
+  if(!edu_cmu_cs_kimberley_kcm_browse(proxy, name, interface, 
 				      &port, &error)) {
     /* Method failed, the GError is set, let's warn everyone */
     g_warning("(example-client) kcm->client() method failed: %s", 

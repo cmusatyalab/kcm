@@ -23,7 +23,7 @@ int main(int argc, char *argv[]) {
   unsigned short port = 0;
   unsigned int len, i;
   gchar *name = KCM_SERVICE_NAME, **interface_strs = NULL;
-  guint gport = 0, interfaces = 1;
+  guint gport = 0, interface = -1;
   struct sockaddr_in saddr;
 
   fprintf(stderr, "(example-server) starting up (pid=%d)..\n", getpid());
@@ -95,7 +95,7 @@ int main(int argc, char *argv[]) {
 
   gport = port;
 
-  if(!edu_cmu_cs_kimberley_kcm_publish(proxy, name, interfaces, 
+  if(!edu_cmu_cs_kimberley_kcm_publish(proxy, name, interface, 
 				       port, &error)) {
     if(error != NULL) {
       g_warning("server() method failed: %s", error->message);
