@@ -23,6 +23,7 @@ client_main(void *arg) {
   struct sockaddr_in saddr;
   SSL *remote_ssl;
   client_params_t *parms = arg;
+  kcm_avahi_connect_info_t *host = parms->host;
 
   fprintf(stderr, "(dcm-client) New thread starting..\n");
 
@@ -48,45 +49,44 @@ client_main(void *arg) {
    * Now wait until Avahi callbacks trigger after service discovery.
    */
 
-  while(parms->host->kci_hostname == NULL)
+  while(host->kci_port == 0)
     continue;
 
 
-  fprintf(stderr, "(dcm-client) Listening locally on port %u..\n", sp);
+  fprintf(stderr, "(kcm-client) Listening locally on port %u..\n", sp);
 
-  fprintf(stderr, "(dcm-client) Waiting for browser and resolver callbacks "
+  fprintf(stderr, "(kcm-client) Waiting for browser and resolver callbacks "
 	  "with connection info.\n");
 
 
-  fprintf(stderr, "(dcm-client) Making remote connection to %s:%d..\n",
-	  parms->host->kci_hostname, parms->host->kci_port);
+  fprintf(stderr, "(kcm-client) Making remote connection to %s:%d..\n",
+	  host->kci_hostname, host->kci_port);
 
-  remote_connfd = make_tcpip_connection(parms->host->kci_hostname, 
-					parms->host->kci_port);
+  remote_connfd = make_tcpip_connection(host->kci_hostname, host->kci_port);
   if(remote_connfd < 0) {
-    fprintf(stderr, "(dcm-client) Couldn't make remote connection!\n");
+    fprintf(stderr, "(kcm-client) Couldn't make remote connection!\n");
     pthread_exit((void *)-1);
   }
 
-  fprintf(stderr, "(dcm-client) Encrypting remote connection..\n");
+  fprintf(stderr, "(kcm-client) Encrypting remote connection..\n");
 
   remote_ssl = SSL_new(ctx);
   if(remote_ssl == NULL) {
-    fprintf(stderr, "(dcm-client) Couldn't generate SSL!\n");
+    fprintf(stderr, "(kcm-client) Couldn't generate SSL!\n");
     pthread_exit((void *)-1);
   }
   
   if(SSL_set_fd(remote_ssl, remote_connfd) < 0) {
-    fprintf(stderr, "(dcm-client) Couldn't set SSL descriptor!\n");
+    fprintf(stderr, "(kcm-client) Couldn't set SSL descriptor!\n");
     pthread_exit((void *)-1);
   }
   
   if(SSL_connect(remote_ssl) <=0) {
-    fprintf(stderr, "(dcm-client) Couldn't give SSL handshake!\n");
+    fprintf(stderr, "(kcm-client) Couldn't give SSL handshake!\n");
     pthread_exit((void *)-1);
   }
 
-  fprintf(stderr, "(dcm-client) Accepting incoming connection..\n");
+  fprintf(stderr, "(kcm-client) Accepting incoming connection..\n");
 
   local_connfd = accept(listenfd, NULL, NULL);
   if(local_connfd < 0) {
@@ -94,7 +94,7 @@ client_main(void *arg) {
     pthread_exit((void *)-1);
   }    
   
-  fprintf(stderr, "(dcm-client) Accepted! Tunneling between the two threads..\n");
+  fprintf(stderr, "(kcm-client) Accepted! Tunneling between the two threads..\n");
 
   tunnel(local_connfd, remote_connfd, remote_ssl);
 

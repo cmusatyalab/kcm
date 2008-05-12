@@ -57,7 +57,7 @@ kcm_avahi_resolve_callback(AvahiServiceResolver *r,
       char a[AVAHI_ADDRESS_STR_MAX], *t;
       
       fprintf(stderr, "(kcm-avahi) Resolved service '%s' of type '%s' in "
-	      "domain '%s':\n", name, type, domain);
+	      "domain '%s' on interface '%d':\n", name, type, domain, interface);
      
       if(kb != NULL) {
 	avahi_address_snprint(a, sizeof(a), address);
@@ -68,8 +68,8 @@ kcm_avahi_resolve_callback(AvahiServiceResolver *r,
 	 * Send information outside of Avahi module.
 	 */
 	if(kb->kab_conninfo != NULL) {
+	  strcpy(kb->kab_conninfo->kci_hostname, a);
 	  kb->kab_conninfo->kci_port = port;
-	  kb->kab_conninfo->kci_hostname = strdup(a);
 	}
       }
 
@@ -113,7 +113,7 @@ kcm_avahi_browse_callback(AvahiServiceBrowser *b,
 			  const char *type,
 			  const char *domain,
 			  AVAHI_GCC_UNUSED AvahiLookupResultFlags flags,
-			  void* userdata) 
+			  void *userdata) 
 {
   assert(b);
 
@@ -585,7 +585,7 @@ kcm_avahi_browse(char *service_name, int if_index, kcm_avahi_connect_info_t *con
 						   NULL, 
 						   0,
 						   kcm_avahi_browse_callback, 
-						   kcm_avahi_state->kai_browse);
+						   browser);
   if(browser->kab_browser == NULL) {
     fprintf(stderr, "(kcm-avahi) Failed to create service browser: %s\n", 
 	    avahi_strerror(avahi_client_errno(kcm_avahi_state->kai_client)));

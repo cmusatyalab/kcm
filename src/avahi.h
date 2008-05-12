@@ -17,7 +17,7 @@
 
 typedef struct {
   unsigned short       kci_port;
-  char                *kci_hostname;
+  char                 kci_hostname[PATH_MAX];
 } kcm_avahi_connect_info_t;
 
 

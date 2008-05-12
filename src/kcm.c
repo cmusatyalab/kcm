@@ -164,7 +164,6 @@ kcm_sense(KCM *server, gchar ***interfaces, GError **error) {
  
 gboolean
 kcm_browse(KCM *server, gchar *service_name, gint interface, guint *gport, GError **error) {
-  volatile int port;
   pthread_t tid;
   kcm_avahi_connect_info_t *host;
   volatile client_params_t parms;
@@ -185,7 +184,7 @@ kcm_browse(KCM *server, gchar *service_name, gint interface, guint *gport, GErro
   if(host == NULL)
     return FALSE;
 
-  host->kci_hostname = NULL;
+  host->kci_hostname[0] = '\0';
   host->kci_port = 0;
 
   parms.host = host;
