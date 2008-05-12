@@ -40,7 +40,7 @@ resolve_callback(AvahiServiceResolver *r,
 		 AvahiLookupResultFlags flags,
 		 AVAHI_GCC_UNUSED void* userdata)
 {
-  kcm_browse_t *kb = (kcm_browse_t *)userdata;
+  kcm_avahi_browse_t *kb = (kcm_avahi_browse_t *)userdata;
   assert(r);
  
   /* Called whenever a service has been resolved successfully or timed out */
@@ -273,7 +273,7 @@ kcm_avahi_init(GMainLoop *loop)
   kcm_avahi_internals_t *temp;
 
 
-  if(kcm_avahi_internals != NULL) {
+  if(kcm_avahi_state != NULL) {
     fprintf(stderr, "(kcm-avahi) KCM Avahi already initialized!\n");
     return -1;
   }
@@ -294,20 +294,19 @@ kcm_avahi_init(GMainLoop *loop)
     return -1;
   }
 
-  temp->loop = loop;
-  temp->avahi_gpoll_api = NULL;
-  temp->avahi_gpoll = NULL;
-  temp->avahi_client = NULL;
-  temp->service_name = "KCM Service";
-  temp->client_running = 0;
+  temp->kai_loop = loop;
+  temp->kai_gpoll_api = NULL;
+  temp->kai_gpoll = NULL;
+  temp->kai_client = NULL;
+  temp->kai_service_name = "KCM Service";
 
-  err = pthread_mutex_init(&temp->mut, NULL);
+  err = pthread_mutex_init(&temp->kai_mut, NULL);
   if(err != 0) {
     fprintf(stderr, "(kcm-avahi) pthread_mutex_init failed: %d\n", err);
     goto init_fail;
   }
 
-  err = pthread_mutex_lock(&temp->mut, NULL);
+  err = pthread_mutex_lock(&temp->kai_mut, NULL);
   if(err != 0) {
     fprintf(stderr, "(kcm-avahi) pthread_mutex_lock failed: %d\n", err);
     goto init_fail;
@@ -325,13 +324,13 @@ kcm_avahi_init(GMainLoop *loop)
    * Create a GLib polling primitive.
    */
 
-  temp->avahi_gpoll = avahi_glib_poll_new(NULL, G_PRIORITY_DEFAULT);
+  temp->kai_gpoll = avahi_glib_poll_new(NULL, G_PRIORITY_DEFAULT);
   if(temp->avahi_gpoll == NULL) {
     fprintf(stderr, "(kcm-avahi) avahi_glib_poll_new failed.\n");
     goto init_fail;
   }
 
-  temp->avahi_gpoll_api = avahi_glib_poll_get(temp->avahi_gpoll);
+  temp->kai_gpoll_api = avahi_glib_poll_get(temp->avahi_gpoll);
   if(temp->avahi_gpoll_api == NULL) {
     fprintf(stderr, "(kcm-avahi) avahi_glib_poll_get failed.\n");
     goto init_fail;
@@ -342,14 +341,14 @@ kcm_avahi_init(GMainLoop *loop)
    * Create a new AvahiClient instance
    */
 
-  avahi_client = avahi_client_new(temp->avahi_gpoll_api, 
-				  0, 
-				  avahi_client_callback,
-				  temp, 
-				  &err)
-  if(avahi_client == NULL) {
+  temp->kai_client = avahi_client_new(temp->kai_gpoll_api, 
+				      0, 
+				      avahi_client_callback,
+				      temp, 
+				      &err);
+  if(temp->kai_client == NULL) {
     g_warning ("(kcm-avahi) Error initializing Avahi: %s", 
-	       avahi_strerror(error));
+	       avahi_strerror(err));
     goto init_fail;
   }
 
@@ -359,7 +358,7 @@ kcm_avahi_init(GMainLoop *loop)
   temp->kai_browse = NULL;
 
   kcm_avahi_state = temp;
-  pthread_mutex_unlock(temp->mut);
+  pthread_mutex_unlock(temp->kai_mut);
 
   return 0;
 
@@ -367,10 +366,10 @@ kcm_avahi_init(GMainLoop *loop)
  init_fail:
 
   if(temp != NULL) {
-    if(temp->avahi_client != NULL)
-      avahi_client_free(avahi_client);
-    if(temp->avahi_gpoll != NULL)
-      avahi_glib_poll_free(avahi_gpoll);
+    if(temp->kai_client != NULL)
+      avahi_client_free(temp->kai_client);
+    if(temp->kai_gpoll != NULL)
+      avahi_glib_poll_free(temp->kai_gpoll);
   }
   
   return -1;

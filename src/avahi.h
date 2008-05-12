@@ -23,7 +23,7 @@ typedef struct {
 
 typedef struct {
   GMainLoop           *kai_loop;
-  struct mutex_t       kai_mut;
+  pthread_mutex_t      kai_mut;
   AvahiPoll           *kai_gpoll_api;
   AvahiGLibPoll       *kai_gpoll;
   AvahiClient         *kai_client;
