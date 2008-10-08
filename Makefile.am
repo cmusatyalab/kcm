@@ -1,4 +1,3 @@
-SUBDIRS = src
-
+SUBDIRS = src data
 
 pkgconfigdir = $(libdir)/pkgconfig

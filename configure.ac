@@ -62,9 +62,7 @@ AC_SEARCH_LIBS([avahi_client_new],
 AC_SEARCH_LIBS([avahi_glib_poll_get],
 	[avahi-glib],, AC_MSG_FAILURE([cannot find avahi_glib_poll_get function]))
 
-dnl AS_AC_EXPAND(DATADIR, $datadir)
-
-DBUS_SERVICES_DIR="$DATADIR/dbus-1/services"
+DBUS_SERVICES_DIR="`pkg-config --variable=session_bus_services_dir dbus-1`"
 AC_SUBST(DBUS_SERVICES_DIR)
 AC_DEFINE_UNQUOTED(DBUS_SERVICES_DIR, "$DBUS_SERVICES_DIR", [Where services dir for DBUS is])
 
@@ -74,6 +72,7 @@ AC_SUBST(AM_CFLAGS, ['-Wall -Werror-implicit-function-declaration $(GLIB2_CFLAGS
 # done
 AC_CONFIG_FILES([
 Makefile
+data/Makefile
 src/Makefile
 ])
 AC_OUTPUT
