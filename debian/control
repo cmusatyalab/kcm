@@ -2,7 +2,7 @@ Source: kcm
 Section: unknown
 Priority: extra
 Maintainer: Adam Wolbach <awolbach@cmu.edu>
-Build-Depends: debhelper (>= 5), libssl-dev, libglib2.0-dev, libdbus-1-dev, libdbus-glib-1-dev, avahi-daemon, libavahi-glib-dev
+Build-Depends: debhelper (>= 5), libssl-dev, libglib2.0-dev, libdbus-1-dev, libdbus-glib-1-dev, avahi-daemon, libavahi-client-dev, libavahi-glib-dev
 Standards-Version: 3.7.2
 
 Package: kcm
