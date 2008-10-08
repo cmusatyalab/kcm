@@ -157,7 +157,7 @@ kcm_avahi_browse_callback(AvahiServiceBrowser *b,
       fprintf(stderr, "(kcm-avahi) Both service name and type match!\n");
       if (!(avahi_service_resolver_new(avahi_service_browser_get_client(b), 
 				       interface, protocol, name, type, 
-				       domain, AVAHI_PROTO_UNSPEC, 0, 
+				       domain, AVAHI_PROTO_INET, 0, 
 				       kcm_avahi_resolve_callback, userdata)))
 	fprintf(stderr, "(kcm-avahi) Failed to create service resolver: %s\n", 
 		avahi_strerror(avahi_client_errno(avahi_service_browser_get_client(b))));
@@ -493,7 +493,7 @@ kcm_avahi_publish(char *service_name, int if_index, unsigned short port)
 
   err = avahi_entry_group_add_service(group,
 				      iface,
-				      AVAHI_PROTO_UNSPEC, 
+				      AVAHI_PROTO_INET, 
 				      0, 
 				      service->kap_service_name, 
 				      KCM_AVAHI_TYPE,
@@ -501,7 +501,7 @@ kcm_avahi_publish(char *service_name, int if_index, unsigned short port)
 				      NULL, 
 				      port, 
 				      NULL);
-  if(err < 0) {
+  if (err < 0) {
     fprintf(stderr, "(kcm-avahi) Failed to add service: %s\n",
 	    avahi_strerror(err));
     goto publish_fail;
@@ -529,8 +529,6 @@ kcm_avahi_publish(char *service_name, int if_index, unsigned short port)
 
 
  publish_fail:
-
-  
   
   if(service != NULL)
     free(service);
@@ -591,7 +589,7 @@ kcm_avahi_browse(char *service_name, int if_index, kcm_avahi_connect_info_t *con
 
   browser->kab_browser = avahi_service_browser_new(kcm_avahi_state->kai_client,
 						   iface,
-						   AVAHI_PROTO_UNSPEC,
+						   AVAHI_PROTO_INET,
 						   KCM_AVAHI_TYPE,
 						   NULL, 
 						   0,

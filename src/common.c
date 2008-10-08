@@ -281,36 +281,43 @@ listen_on_any_tcp_port_locally(void) {
 
 
 int
-make_tcpip_connection(char *hostname, unsigned short port) {
-  int sockfd, err;
+make_tcpip_connection(char *hostname, unsigned short port)
+{
+  int sockfd = -1, err;
   char port_str[NI_MAXSERV];
-  struct addrinfo *info, hints;
+  struct addrinfo *ai, *ret, hints = {
+	.ai_family = AF_INET,
+	.ai_socktype = SOCK_STREAM
+  };
 
-  if((hostname == NULL) || (port == 0)) 
+  if ((hostname == NULL) || (port == 0)) 
     return -1;
   
-  if((sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
-    perror("socket");
-    return -1;
-  }
-    
-  bzero(&hints,  sizeof(struct addrinfo));
-  hints.ai_flags = AI_CANONNAME;
-  hints.ai_family = AF_INET;
-  hints.ai_socktype = SOCK_STREAM;
   snprintf(port_str, 6, "%u", port);
     
-  if((err = getaddrinfo(hostname, port_str, &hints, &info)) < 0) {
+  err = getaddrinfo(hostname, port_str, &hints, &ret);
+  if (err < 0) {
     fprintf(stderr, "(kcm) getaddrinfo failed: %s\n", gai_strerror(err));
     return -1;
   }
 
-  if(connect(sockfd, info->ai_addr, sizeof(struct sockaddr_in)) < 0) {
+  for (ai = ret; ai != NULL; ai = ai->ai_next)
+  {
+    sockfd = socket(ai->ai_family, ai->ai_socktype, ai->ai_protocol);
+    if (sockfd < 0) {
+      perror("socket");
+      continue;
+    }
+   
+    if (connect(sockfd, ai->ai_addr, ai->ai_addrlen) != -1)
+	break;
+
     perror("connect");
-    return -1;
+    close(sockfd);
+    sockfd = -1;
   }
 
-  freeaddrinfo(info);
+  freeaddrinfo(ret);
 
   return sockfd;
 }
