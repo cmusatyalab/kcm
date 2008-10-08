@@ -1,3 +1,0 @@
-[D-BUS Service]
-Name=edu.cmu.cs.diamond.opendiamond.dcm
-Exec=@bindir@/dcm

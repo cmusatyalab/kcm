@@ -1,12 +1,12 @@
-Source: dcm
+Source: kcm
 Section: unknown
 Priority: extra
 Maintainer: Adam Wolbach <awolbach@cmu.edu>
 Build-Depends: debhelper (>= 5), libssl-dev, libglib2.0-dev, libdbus-1-dev, libdbus-glib-1-dev, avahi-daemon, libavahi-glib-dev
 Standards-Version: 3.7.2
 
-Package: dcm
+Package: kcm
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}
-Description: Display Control Manager (DCM) 
+Description: Kimberley Control Manager (KCM) 
  A service discovery mechanism across various mobile connections types.
